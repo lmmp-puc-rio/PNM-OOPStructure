@@ -1,0 +1,11 @@
+# Create the macvlan if needed
+docker network create -d macvlan exuMacVLAN -o parent=eno1
+
+# Build image
+# Default user
+docker build -t openpnm:dev .
+# Custom user
+docker build -t openpnm:dev --build-arg USERNAME=sergio --build-arg PASSWORD=puc-rio .
+
+# Run the container bind mounting both home directory and OpenPNM directory for persistence.
+docker run -d -v /media/rundata/sergio/Documents/EquinorAssociativePolymerInjection/InitialTests/OpenPNM/openPNMTests:/home/sergio -v openpnm_data:/opt/OpenPNM --name openpnm -it --net baraoMacVLAN -p 22 openpnm:dev
