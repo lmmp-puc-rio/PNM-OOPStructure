@@ -1,0 +1,36 @@
+version: "3"
+services:
+  openpnm:
+    container_name: openpnm
+    # network_mode: host
+    # user: "${UID}:${GID}"
+    build:
+      context: .                 # Dir where the Dockerfile is
+      dockerfile: Dockerfile     # Dockerfile name
+      args:                      # Arguments to be passed to the Dockerfile during build:
+        UID: $UID
+        GID: $GID
+        USERNAME: $USERNAME
+        PASSWORD: $PASSWORD
+    volumes:
+      - user_data:/home/$USERNAME
+    
+    env_file:
+      - .env
+
+volumes:
+  user_data:
+    name: user_data
+    driver: local
+    driver_opts:
+      type: none
+      device: $USER_DATA_PATH
+      o: bind
+    
+  openpnm_data:
+    name: openpnm_data
+    driver: local
+    driver_opts:
+      type: none
+      device: $OPENPNM_PATH
+      o: bind
