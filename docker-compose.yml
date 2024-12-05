@@ -2,8 +2,6 @@ version: "3"
 services:
   openpnm:
     container_name: openpnm
-    # network_mode: host
-    # user: "${UID}:${GID}"
     build:
       context: .                 # Dir where the Dockerfile is
       dockerfile: Dockerfile     # Dockerfile name
@@ -15,7 +13,7 @@ services:
     volumes:
       - user_data:/home/$USERNAME
     
-    env_file:
+    env_file:                     # Arguments entered above must be set in a .env file not versioned.
       - .env
 
 volumes:
