@@ -18,11 +18,14 @@ RUN apt-get update && apt-get install -y git wget
 # Create a non-root user and set up the home directory
 ARG USERNAME=lmmp
 ARG PASSWORD=puc-rio
+ARG UID
+ARG GID
 
-RUN groupadd $USERNAME && \
-    useradd -m -g $USERNAME -s /bin/bash $USERNAME && \
+RUN groupadd -g ${GID} ${USERNAME} && \
+    useradd -m -u $UID -g $USERNAME -s /bin/bash $USERNAME && \
     echo "$USERNAME:$PASSWORD" | chpasswd && \
-    chown -R $USERNAME:$USERNAME /home/$USERNAME
+    chown -R $USERNAME:$USERNAME /home/$USERNAME && \
+    usermod -aG sudo $USERNAME 
 
 # Add the user to sudoers with no password requirement for sudo
 RUN echo '${USERNAME} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers    
@@ -53,8 +56,12 @@ RUN pip install .
 # RUN /opt/openpnm_virtualenv/bin/pip install ipykernel
 RUN pip install ipykernel
 
+WORKDIR /home/${USERNAME}
+
+USER ${USERNAME}
+
 # Keep the container running by starting SSH in the foreground
-CMD ["/bin/sh", "-c", "/etc/init.d/ssh start && tail -f /dev/null"]
+CMD ["/bin/sh", "-c", "echo ${PASSWORD} | sudo -S /etc/init.d/ssh start && tail -f /dev/null"]
 
 
 
