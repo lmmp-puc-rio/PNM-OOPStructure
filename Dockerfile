@@ -56,7 +56,7 @@ RUN pip install .
 # RUN /opt/openpnm_virtualenv/bin/pip install ipykernel
 RUN pip install ipykernel
 
-WORKDIR /home/${USERNAME}
+WORKDIR /home/${USERNAME}/OpenPNM
 
 USER ${USERNAME}
 
