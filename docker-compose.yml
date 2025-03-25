@@ -12,6 +12,7 @@ services:
         PASSWORD: $PASSWORD
     volumes:
       - user_data:/home/$USERNAME/OpenPNM/
+      - openpnm_data:/opt/OpenPNM/
     
     env_file:                     # Arguments entered above must be set in a .env file not versioned.
       - .env

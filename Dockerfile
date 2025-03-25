@@ -56,7 +56,7 @@ RUN pip install pypardiso
 # allows you to modify the source code of the package, 
 # and the changes will be immediately reflected without needing to reinstall the package. 
 # RUN /opt/openpnm_virtualenv/bin/pip install -e .
-RUN pip install .
+RUN pip install -e .
 
 # RUN /opt/openpnm_virtualenv/bin/pip install ipykernel
 RUN pip install ipykernel
