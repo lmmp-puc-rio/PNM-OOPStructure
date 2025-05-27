@@ -147,7 +147,7 @@ for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
     inv_pore_pattern = ip['pore.invasion_sequence'] <= sequence
     op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r', ax=ax3)
     op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' ,ax=ax3);
-    ax3.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
+    # ax3.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
     fig3.savefig(path+"/results/videos/ip_no_trapping/frames/frame"+str(sequence)+".png")
     image_files.append(path+"/results/videos/ip_no_trapping/frames/frame"+str(sequence)+".png")
 
@@ -174,9 +174,9 @@ op.visualization.plot_coordinates(pn, pn.pores('left'), c='r', s=50, ax=ax4)
 for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
     inv_throat_pattern = ip['throat.invasion_sequence'] <= sequence
     inv_pore_pattern = ip['pore.invasion_sequence'] <= sequence
-    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r', ax=ax4)
+    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r', ax=ax4);
     op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' ,ax=ax4);
-    ax4.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
+    # ax4.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
     fig4.savefig(path+"/results/videos/ip_trapping/frames/frame"+str(sequence)+".png")
     image_files.append(path+"/results/videos/ip_trapping/frames/frame"+str(sequence)+".png")
 
@@ -185,10 +185,13 @@ clip.write_videofile(path+"/results/videos/ip_trapping/saturation_ip_trapping.mp
 
 
 fig5,ax5 = plt.subplots()
-ax5.semilogx(data_ip_no_trapping.pc, data_ip_no_trapping.snwp, 'b-', label='without trapping')
-ax5.semilogx(data_ip_trapping.pc, data_ip_trapping.snwp, 'r--', label='with trapping', linewidth=1)
+line1, = ax5.semilogx(data_ip_no_trapping.pc, data_ip_no_trapping.snwp*100, 'b-', label='without trapping')
+line2, = ax5.semilogx(data_ip_trapping.pc, data_ip_trapping.snwp*100, 'r--', label='with trapping', linewidth=1)
 ax5.set_xlabel('Capillary Pressure [Pa]')
-ax5.set_ylabel('Non-Wetting Phase Saturation')
-ax5.legend();
-fig5.savefig(path+"/results/CapillaryPressureXSaturation.png")
+ax5.set_ylabel('Non-Wetting Phase Saturation[%]')
+ax5.legend(handles=[line1, line2], loc='best');
+ax5.set_title('Cubic Network with Invasion Percolation')
+ax5.set_xlim(1e5, 1e8)
+ax5.set_ylim(0, 100)
+fig5.savefig(path+"/results/ip_CapillaryPressureXSaturation.png")
 
