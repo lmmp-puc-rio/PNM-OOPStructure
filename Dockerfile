@@ -38,6 +38,11 @@ WORKDIR /opt
 RUN git clone https://github.com/PMEAL/OpenPNM
 WORKDIR ./OpenPNM
 
+COPY ./patches/* .
+
+# Apply patches to the OpenPNM repository
+RUN git apply --ignore-space-change --ignore-whitespace --reject --whitespace=fix *.patch
+
 # RUN /opt/openpnm_virtualenv/bin/pip install -r requirements.txt
 RUN pip install -r requirements.txt
 
