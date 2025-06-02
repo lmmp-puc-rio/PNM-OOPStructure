@@ -89,6 +89,7 @@ ipython_config.py
 
 # VS Code
 .vscode-server
+.vscode
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -171,3 +172,4 @@ cython_debug/
 
 # Results
 results/
+demo_results/
