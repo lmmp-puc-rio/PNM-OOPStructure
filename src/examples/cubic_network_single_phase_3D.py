@@ -51,13 +51,23 @@ flow.set_value_BC(pores=outlet, values=0)
 flow.run()
 phase.update(flow.soln)
 
-# NBVAL_IGNORE_OUTPUT
+# Predicting Permeability
 Q = flow.rate(pores=inlet, mode='group')[0]
 A = op.topotools.get_domain_area(pn, inlets=inlet, outlets=outlet)
 L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
 # K = Q * L * mu / (A * Delta_P) # mu and Delta_P were assumed to be 1.
 K = Q * L / A
 kmD = K/0.98e-12*1000
+
+# Predicting Porosity
+Vol_bulk = A * L
+# Throat volume (throat.volume) = volume of cylinder (throat.total volume) - the overlap of cylinder with spherical pores at its two ends (difference)
+Vol_void_initial = np.sum(pn['pore.volume'])+np.sum(pn['throat.total_volume'])
+Vol_void_corrected = np.sum(pn['pore.volume'])+np.sum(pn['throat.volume']) 
+PorosityInitial = Vol_void_initial / Vol_bulk
+PorosityCorrected = Vol_void_corrected / Vol_bulk
+print(f'Porosity Initial Manual: {PorosityInitial:.5f}')
+print(f'Porosity Corrected Manual: {PorosityCorrected:.5f}')
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111, projection='3d')
@@ -70,7 +80,9 @@ ax1.set_zlim(0, n_pores*spacing)
 ax1.set_xlabel('X [m]')
 ax1.set_ylabel('Y [m]')
 ax1.set_zlabel('Z [m]')
-fig1.set_size_inches(n_pores,n_pores)
+fig1.set_size_inches(n_pores,n_pores*1.2)
 ax1.view_init(elev=elev, azim=azim)
-ax1.set_title('Pressure Field:' + f' K = {K/0.98e-12*1000:.5f} mD',fontsize=2*n_pores)
+ax1.set_title('Pressure Field \n' 
+              + f' Permeability = {K/0.98e-12*1000:.5f} mD \n'
+              + f' Porosity = {PorosityCorrected*100:.2f} % ' ,fontsize=2*n_pores)
 fig1.savefig(path+"/results/singlePhase_PressureField.png")
