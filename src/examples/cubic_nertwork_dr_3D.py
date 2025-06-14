@@ -61,6 +61,7 @@ InletNeighborThroats = pn.find_neighbor_throats(pores=InletPores, mode='or')
 # Outlet = pn.pores('right')
 pn['pore.volume'][InletPores] = 0.0
 pn['pore.volume'][OutletPores] = 0.0
+
 drn = op.algorithms.Drainage(network=pn, phase=air)
 drn.set_inlet_BC(pores=InletPores)
 drn.set_outlet_BC(pores=OutletPores)
@@ -110,9 +111,6 @@ for sequence in np.unique(drn['throat.invasion_sequence'][drn['throat.invasion_s
 
 clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
 clip.write_videofile(path+"/results/videos/drn3D_trapping/saturation_drn3D_trapping_"+str(n_pores)+".mp4")
-
-# print(len(data_drn3D_trapping.pc))
-# print(len(np.unique(drn['throat.invasion_sequence'][drn['throat.invasion_sequence']!= np.inf])))
 
 fig3,ax3 = plt.subplots()
 fig3.set_size_inches(10,10)
