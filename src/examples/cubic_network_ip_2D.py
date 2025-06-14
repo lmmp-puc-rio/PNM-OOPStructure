@@ -19,7 +19,7 @@ path = os.path.dirname(__file__)
 """First, we create a network and assign phases and properties in a similar way that we used to do for the other examples.""" 
 
 # Creating a Cubic Network
-Nx, Ny, Nz = 25, 25, 1
+Nx, Ny, Nz = 5, 5, 1
 np.random.seed(5)
 fps = 10
 Lc = 1e-6
@@ -47,8 +47,12 @@ air.add_model(propname='throat.entry_pressure',
 
 # Network Visualization
 fig1,ax1 = plt.subplots()
-op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax1)
-op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=3, c='b', ax=ax1);
+op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=50, c='r',ax=ax1)
+op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=5, alpha=0.5 , c='b' ,ax=ax1)
+op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax1)
+fig1.savefig(path+"/results/videos/ip_no_trapping/frames/frame0.png")
+
+
 
 # # Manual invasion percolation algorithm
 # Pinv = np.zeros(pn.Np, dtype=bool)  # Pre-allocate array for storing pore invasion state
@@ -138,8 +142,8 @@ image_files = []
 
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax3);
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=3, c='b' ,ax=ax3);
-op.visualization.plot_coordinates(pn, pn.pores('left'), c='r', s=50, ax=ax3)
-print(len(ip['throat.invasion_sequence']))
+op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], c='r', ax=ax3)
+fig3.savefig(path+"/results/videos/ip_no_trapping/frames/frame0.png")
 
 
 for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
@@ -169,7 +173,8 @@ fig4,ax4 = plt.subplots()
 
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax4);
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=3, c='b' ,ax=ax4);
-op.visualization.plot_coordinates(pn, pn.pores('left'), c='r', s=50, ax=ax4)
+op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], c='r', ax=ax4)
+fig4.savefig(path+"/results/videos/ip_trapping/frames/frame0.png")
 
 for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
     inv_throat_pattern = ip['throat.invasion_sequence'] <= sequence
