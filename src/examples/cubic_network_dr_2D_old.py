@@ -9,16 +9,21 @@ import moviepy.video.io.ImageSequenceClip
 op.visualization.set_mpl_style()
 path = os.path.dirname(__file__)
 
-# Setup Necessary Objects
-fps = 10
-Lc = 1e-6
 
 np.random.seed(5)
 
-n_pores = 10
+
+
+
+
+
+
+
+n_pores = 25
 np.random.seed(5)
 spacing = 1e-4
-
+fps = 10
+Lc = 1e-6
 pn = op.network.Cubic(shape=[n_pores, n_pores, 1], spacing=spacing)
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
 pn.regenerate_models()
@@ -26,8 +31,12 @@ max_lenght = n_pores*spacing
 
 pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
 pn['throat.diameter'] = np.random.rand(pn.Nt)*Lc
-
+water = op.phase.Water(network=pn,name='water')
 air = op.phase.Air(network=pn)
+water.add_model_collection(op.models.collections.phase.water)
+water.add_model_collection(op.models.collections.physics.basic)
+water.regenerate_models()
+
 
 os.makedirs(path+"/results/videos/drainage_manual/frames/", exist_ok=True)
 files = glob.glob(path+"/results/videos/drainage_manual/frames/*")
@@ -41,16 +50,11 @@ op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=3
 fig0.savefig(path+"/results/Network.png")
 
 ## Define capillary pressure as 70% of throats mean entry pressure
+washAir = op.models.physics.capillary_pressure.washburn
 air['pore.contact_angle'] = 120
 air['pore.surface_tension'] = 0.072
-water = op.phase.Water(network=pn,name='water')
-water.add_model_collection(op.models.collections.phase.water)
-water.add_model_collection(op.models.collections.physics.basic)
-water.regenerate_models()
-f = op.models.physics.capillary_pressure.washburn
-
 air.add_model(propname='throat.entry_pressure',
-              model=f, 
+              model=washAir, 
               surface_tension='throat.surface_tension',
               contact_angle='throat.contact_angle',
               diameter='throat.diameter',)
@@ -58,27 +62,26 @@ Pc = air['throat.entry_pressure'].mean()*0.7
 Ts = 1.0*(air['throat.entry_pressure'] < Pc)
 
 
-# Manual Implementation of Drainage Process
-from scipy.sparse import csgraph as csg
-am = pn.create_adjacency_matrix(weights=Ts, fmt='csr', triu=False, drop_zeros=True)
-clusters = csg.connected_components(am, directed=False)[1]
-print(clusters)
-fig1,ax1 = plt.subplots()
-op.visualization.plot_coordinates(network=pn, color_by=clusters, s=40, cmap=plt.cm.nipy_spectral,ax=ax1)
-op.visualization.plot_connections(network=pn, c='lightgrey', ax=ax1)
-fig1.savefig(path+"/results/drn_manual_clusters.png")
 
-invaded_pores = np.isin(clusters, clusters[pn.pores('left')])
-fig2,ax2 = plt.subplots()
-op.visualization.plot_coordinates(network=pn, color_by=invaded_pores, s=40, cmap=plt.cm.viridis, ax=ax2)
-op.visualization.plot_connections(network=pn, c='lightgrey', ax=ax2)
-fig2.savefig(path+"/results/drn_manual_invaded_pores.png")
+# # Manual Implementation of Drainage Process
+# from scipy.sparse import csgraph as csg
+# am = pn.create_adjacency_matrix(weights=Ts, fmt='csr', triu=False, drop_zeros=True)
+# clusters = csg.connected_components(am, directed=False)[1]
+# print(clusters)
+# fig1,ax1 = plt.subplots()
+# op.visualization.plot_coordinates(network=pn, color_by=clusters, s=40, cmap=plt.cm.nipy_spectral,ax=ax1)
+# op.visualization.plot_connections(network=pn, c='lightgrey', ax=ax1)
+# fig1.savefig(path+"/results/drn_manual_clusters.png")
+
+# invaded_pores = np.isin(clusters, clusters[pn.pores('left')])
+# fig2,ax2 = plt.subplots()
+# op.visualization.plot_coordinates(network=pn, color_by=invaded_pores, s=40, cmap=plt.cm.viridis, ax=ax2)
+# op.visualization.plot_connections(network=pn, c='lightgrey', ax=ax2)
+# fig2.savefig(path+"/results/drn_manual_invaded_pores.png")
 
 # Using Drainage Algorithm
-np.random.seed(5)
-
-
 drn = op.algorithms.Drainage(network=pn, phase=air)
+np.random.seed(5)
 Inlet = pn.pores('left')
 Outlet = pn.pores('right')
 pn['pore.volume'][Inlet] = 0.0
@@ -86,7 +89,7 @@ drn.set_inlet_BC(pores=Inlet)
 # drn.set_outlet_BC(pores=Outlet, mode='overwrite')
 drn.run(pressures=100)
 
-data_drn_no_trapping = drn.pc_curve()
+data_drn_no_trapping = drn.pc_curve(pressures=100)
 
 os.makedirs(path+"/results/videos/drn_no_trapping/frames/", exist_ok=True)
 files = glob.glob(path+"/results/videos/drn_no_trapping/frames/*")
@@ -98,7 +101,9 @@ fig3,ax3 = plt.subplots()
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=50, c='r',ax=ax3)
 op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax3)
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=5, alpha=0.5 , c='b' ,ax=ax3)
-# fig3.set_size_inches(10, 10)
+ax3.set_xlim((0, max_lenght))
+ax3.set_ylim((0, max_lenght))
+fig3.set_size_inches(10, 10)
 fig3.savefig(path+"/results/videos/drn_no_trapping/frames/frame0.png")
 print(len(drn['throat.invasion_sequence']))
 
@@ -107,7 +112,7 @@ for sequence in np.unique(drn['throat.invasion_sequence'][drn['throat.invasion_s
     inv_throat_pattern = drn['throat.invasion_sequence'] <= sequence
     inv_pore_pattern = drn['pore.invasion_sequence'] <= sequence
     op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' , alpha=0.5 ,ax=ax3);
-    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r',ax=ax3);
+    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r',alpha=0.5 ,ax=ax3);
     ax3.set_aspect('auto')
     ax3.set_xlim((0, max_lenght))
     ax3.set_ylim((0, max_lenght))
@@ -121,7 +126,7 @@ clip.write_videofile(path+"/results/videos/drn_no_trapping/saturation_drn_no_tra
 # Apply trapping
 drn.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
 drn.apply_trapping()
-data_drn_trapping = drn.pc_curve()
+data_drn_trapping = drn.pc_curve(pressures=100)
 
 os.makedirs(path+"/results/videos/drn_trapping/frames/", exist_ok=True)
 files = glob.glob(path+"/results/videos/drn_trapping/frames/*")
@@ -134,7 +139,9 @@ fig4,ax4 = plt.subplots()
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=50, c='r',ax=ax4)
 op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax4)
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=5, c='b', alpha=0.5 ,ax=ax4)
-# fig4.set_size_inches(10, 10)
+fig4.set_size_inches(10, 10)
+ax4.set_xlim((0, max_lenght))
+ax4.set_ylim((0, max_lenght))
 fig4.savefig(path+"/results/videos/drn_trapping/frames/frame0.png")
 print(len(drn['throat.invasion_sequence']))
 image_files = []
@@ -143,13 +150,13 @@ for sequence in np.unique(drn['throat.invasion_sequence'][drn['throat.invasion_s
     k += 1
     inv_throat_pattern = drn['throat.invasion_sequence'] <= sequence
     inv_pore_pattern = drn['pore.invasion_sequence'] <= sequence
-    op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' ,ax=ax4);
-    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r',alpha=1,ax=ax4);
+    op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' , alpha=0.5 ,ax=ax4);
+    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r',alpha=0.5 , ax=ax4);
     ax4.set_aspect('auto')
+    ax4.set_xlim((0, max_lenght))
+    ax4.set_ylim((0, max_lenght))
     # ax2.set_title('Pressure = '+str(data_drn_trapping.pc[k])+' Pa')
-    ax3.set_xlim((0, max_lenght))
-    ax3.set_ylim((0, max_lenght))
-    # fig3.set_size_inches(10, 10)
+    fig3.set_size_inches(10, 10)
     fig4.savefig(path+"/results/videos/drn_trapping/frames/frame"+str(k)+".png")
     image_files.append(path+"/results/videos/drn_trapping/frames/frame"+str(k)+".png")
 
