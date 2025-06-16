@@ -19,11 +19,12 @@ path = os.path.dirname(__file__)
 """First, we create a network and assign phases and properties in a similar way that we used to do for the other examples.""" 
 
 # Creating a Cubic Network
-Nx, Ny, Nz = 5, 5, 1
+npores = 10
 np.random.seed(5)
 fps = 10
+trapping = 'no_trapping'  # Options: 'trapping', 'no_trapping'
 Lc = 1e-6
-pn = op.network.Cubic(shape=[Nx, Ny, Nz], spacing=1e-4)
+pn = op.network.Cubic(shape=[npores, npores, 1], spacing=1e-4)
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
 pn.regenerate_models()
 pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
@@ -34,6 +35,10 @@ water.add_model_collection(op.models.collections.phase.water)
 water.add_model_collection(op.models.collections.physics.basic)
 water.regenerate_models()
 
+os.makedirs(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores", exist_ok=True)
+files = glob.glob(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores/*")
+for f in files:
+    os.remove(f)
 
 # Pore size distribution
 air['pore.contact_angle'] = 120
@@ -50,8 +55,7 @@ fig1,ax1 = plt.subplots()
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=50, c='r',ax=ax1)
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=5, alpha=0.5 , c='b' ,ax=ax1)
 op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax1)
-fig1.savefig(path+"/results/videos/ip_no_trapping/frames/frame0.png")
-
+fig1.savefig(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores/frame0.png")
 
 
 # # Manual invasion percolation algorithm
@@ -128,22 +132,24 @@ Inlet = pn.pores('left')
 Outlet = pn.pores('right')
 pn['pore.volume'][Inlet] = 0.0
 ip.set_inlet_BC(pores=Inlet)
-ip.set_outlet_BC(pores=Outlet, mode='overwrite')
+ip.set_outlet_BC(pores=Outlet)
+
 ip.run()
 data_ip_no_trapping = ip.pc_curve()
 
-os.makedirs(path+"/results/videos/ip_no_trapping/frames/", exist_ok=True)
-files = glob.glob(path+"/results/videos/ip_no_trapping/frames/*")
-for f in files:
-    os.remove(f)
+## Apply Trapping
+if trapping == 'trapping':
+    # ip.set_outlet_BC(pores=Outlet, mode='overwrite')
+    ip.apply_trapping()
 
+data_ip = ip.pc_curve()
 
 image_files = []
 
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax3);
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=3, c='b' ,ax=ax3);
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], c='r', ax=ax3)
-fig3.savefig(path+"/results/videos/ip_no_trapping/frames/frame0.png")
+fig3.savefig(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores/frame0.png")
 
 
 for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
@@ -152,51 +158,30 @@ for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
     op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r', ax=ax3)
     op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' ,ax=ax3);
     # ax3.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
-    fig3.savefig(path+"/results/videos/ip_no_trapping/frames/frame"+str(sequence)+".png")
-    image_files.append(path+"/results/videos/ip_no_trapping/frames/frame"+str(sequence)+".png")
+    fig3.savefig(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores/frame"+str(sequence)+".png")
+    image_files.append(path+"/results/IP_"+trapping+"/videos/frames_"+str(npores)+"pores/frame"+str(sequence)+".png")
 
 clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-clip.write_videofile(path+"/results/videos/ip_no_trapping/saturation_ip_no_trapping.mp4")
+clip.write_videofile(path+"/results/IP_"+trapping+"/videos/saturation_"+str(npores)+"pores.mp4")
 
-ip.apply_trapping()
-print(len(ip['throat.invasion_sequence']))
-data_ip_trapping = ip.pc_curve()
-
-os.makedirs(path+"/results/videos/ip_trapping/frames/", exist_ok=True)
-files = glob.glob(path+"/results/videos/ip_trapping/frames/*")
-for f in files:
-    os.remove(f)
-
-image_files = []
-
-fig4,ax4 = plt.subplots()
-
-op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=50, c='b', ax=ax4);
-op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=3, c='b' ,ax=ax4);
-op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], c='r', ax=ax4)
-fig4.savefig(path+"/results/videos/ip_trapping/frames/frame0.png")
-
-for sequence in range(1, len(ip['throat.invasion_sequence']), 10):
-    inv_throat_pattern = ip['throat.invasion_sequence'] <= sequence
-    inv_pore_pattern = ip['pore.invasion_sequence'] <= sequence
-    op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=50, c='r', ax=ax4);
-    op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=3, c='r' ,ax=ax4);
-    # ax4.legend(['water_pores', 'water_throats', 'gas_pores', 'gas_throats'], loc='best')
-    fig4.savefig(path+"/results/videos/ip_trapping/frames/frame"+str(sequence)+".png")
-    image_files.append(path+"/results/videos/ip_trapping/frames/frame"+str(sequence)+".png")
-
-clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-clip.write_videofile(path+"/results/videos/ip_trapping/saturation_ip_trapping.mp4")
-
-
+#Capilary Pressure vs Non-Wetting Phase Saturation
 fig5,ax5 = plt.subplots()
-line1, = ax5.semilogx(data_ip_no_trapping.pc, data_ip_no_trapping.snwp*100, 'b-', label='without trapping')
-line2, = ax5.semilogx(data_ip_trapping.pc, data_ip_trapping.snwp*100, 'r--', label='with trapping', linewidth=1)
+fig5.set_size_inches(10,10)
+line1, = ax5.semilogx(data_ip.pc, data_ip.snwp*100, 'b-', label=trapping)
+## Apply Trapping
+if trapping == 'trapping':
+    print(1)
+    line2, = ax5.semilogx(data_ip_no_trapping.pc, data_ip_no_trapping.snwp*100, 'r--', label="no trapping")
+    # ip.set_outlet_BC(pores=Outlet, mode='overwrite')
+    lineHandles = [line1,line2]
+else:
+    print(2)
+    lineHandles = [line1]
 ax5.set_xlabel('Capillary Pressure [Pa]')
 ax5.set_ylabel('Non-Wetting Phase Saturation[%]')
-ax5.legend(handles=[line1, line2], loc='best');
+ax5.legend(handles=lineHandles, loc='best');
 ax5.set_title('Cubic Network with Invasion Percolation')
-ax5.set_xlim(1e5, 1e8)
-ax5.set_ylim(0, 100)
-fig5.savefig(path+"/results/ip_CapillaryPressureXSaturation.png")
+# ax5.set_xlim(1e5, 1e8)
+ax5.set_ylim(0, 105)
+fig5.savefig(path+"/results/IP_"+trapping+"/CapillaryPressureXSaturation.png")
 
