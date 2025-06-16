@@ -36,7 +36,6 @@ nest-asyncio==1.6.0
 networkx==3.4.2
 numba==0.60.0
 numpy==1.26.4
--e git+https://github.com/PMEAL/OpenPNM@7fd91d9d5accafd8ac58f343b4ce16bc143640fe#egg=openpnm
 packaging==24.2
 pandas==2.2.3
 parso==0.8.4
