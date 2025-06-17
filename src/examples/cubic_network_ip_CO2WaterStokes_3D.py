@@ -26,9 +26,9 @@ elev = 15
 
 max_lenght = npores*spacing
 
-pn_dim = 2
+pn_dim = '2D'
 if len(np.unique(pn['pore.coords'].T[2])) > 1:
-    pn_dim = 3
+    pn_dim = '3D'
 
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
 pn.regenerate_models()
@@ -48,8 +48,8 @@ water.add_model_collection(op.models.collections.phase.water)
 water.add_model_collection(op.models.collections.physics.basic)
 water.regenerate_models()
 
-graph_path = os.path.join(path, 'results', f'IPRelPerm_{trapping}', 'graphs')
-video_path = os.path.join(path, 'results', f'IPRelPerm_{trapping}', 'videos')
+graph_path = os.path.join(path, 'results', f'DRRelPerm{pn_dim}_{trapping}', 'graphs')
+video_path = os.path.join(path, 'results', f'DRRelPerm{pn_dim}_{trapping}', 'videos')
 frame_path = os.path.join(video_path, f'frames_{npores}_pores')
 
 os.makedirs(graph_path, exist_ok=True)
@@ -58,13 +58,12 @@ os.makedirs(frame_path , exist_ok=True)
 fig0,ax0 = plt.subplots()
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
 op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
-fig0.savefig(os.path.join(graph_path, f'Network3D_CO2WaterStokes_{trapping}{npores}.png'))
+fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
 dr = op.algorithms.Drainage(network=pn, phase=co2)
 Inlet = pn.pores('left')
 Outlet = pn.pores('right')
 dr.set_inlet_BC(pores=Inlet)
 pn['pore.volume'][Inlet] = 0.0
-# Set the capillary pressure model
 dr.run(pressures=200)
 
 Snwp_num=30
@@ -82,8 +81,8 @@ def sat_occ_update(network, nwp, wp, dr, i):
             non-wetting phase
         wp : phase
             wetting phase
-        dr : IP
-            invasion percolation (ran before calling this function)
+        dr : DR
+            drainage (ran before calling this function)
         i: int
             The invasion_sequence limit for masking pores/throats that
             have already been invaded within this limit range. The
@@ -132,12 +131,10 @@ Snwparr = []
 relperm_nwp = []
 relperm_wp = []
 
-
 ## Apply Trapping
 if trapping == 'trapping':
     dr.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
     dr.apply_trapping()
-
 
 tmask = np.isfinite(dr['throat.invasion_sequence'])
 
@@ -168,7 +165,7 @@ left = pn.pores('left')
 Domain = pn.pores('left', mode='not')
 k=0
 
-data_ip3D_trapping = dr.pc_curve()
+data_dr_trapping = dr.pc_curve()
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111)
@@ -180,31 +177,28 @@ ax1.set_xlim(0, 1)
 ax1.set_ylim(0, 1.05)
 ax1.set_title(f'Relative Permeability in x direction - {trapping.replace("_"," ")}', fontsize=16)
 ax1.legend()
-fig1.savefig(os.path.join(graph_path, f'IPRelPerm_{trapping}.png'))
-
+fig1.savefig(os.path.join(graph_path, f'DRRelPerm{pn_dim}_{trapping}.png'))
 
 # Making fames of Invasion Percolation saturation field
 files = glob.glob(os.path.join(frame_path, '*'))
 for f in files:
     os.remove(f)
 
-
 image_files = []
 
 fig2 = plt.figure()
-ax2 = fig2.add_subplot(111) if pn_dim==2 else fig2.add_subplot(111, projection = '3d')
+ax2 = fig2.add_subplot(111, projection = '3d') if pn_dim == '3D' else fig2.add_subplot(111)
 op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=msize,alpha=0.3, c='b', ax=ax2)
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=lwidth, c='b' ,alpha=0.3,ax=ax2)
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=msize, c='r',alpha=0.5,ax=ax2)
 fig2.set_size_inches(npores, npores)
 ax2.set_aspect('auto')
-ax2.set_title(f'Pressure = {(data_ip3D_trapping.pc[k])} Pa',fontsize=16)
+ax2.set_title(f'Pressure = {(data_dr_trapping.pc[k])} Pa',fontsize=16)
 ax2.set_xlim((0, max_lenght))
 ax2.set_ylim((0, max_lenght))
-if pn_dim == 3:
+if pn_dim == '3D':
     ax2.set_zlim((0, max_lenght))
     ax2.view_init(elev=elev, azim=azim)
-# plt.show()
 fig2.savefig(os.path.join(frame_path,'frame0.png'))
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][dr['throat.invasion_sequence']!= np.inf])
 
@@ -224,7 +218,7 @@ with Progress() as p:
         ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
         ax2.set_xlim((0, max_lenght))
         ax2.set_ylim((0, max_lenght))
-        if pn_dim == 3:
+        if pn_dim == '3D':
             ax2.set_zlim((0, max_lenght))
             ax2.view_init(elev=elev, azim=azim)
         fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
@@ -245,14 +239,14 @@ with Progress() as p:
             ax2.set_aspect('auto')
             ax2.set_xlim((0, max_lenght))
             ax2.set_ylim((0, max_lenght))
-            if pn_dim == 3:
+            if pn_dim == '3D':
                 ax2.set_zlim((0, max_lenght))
                 ax2.view_init(elev=elev, azim=azim)
             k += 1
             fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
             image_files.append(os.path.join(frame_path,f'frame{k}.png'))
             p.update(t, advance=1)
-    if pn_dim == 3:
+    if pn_dim == '3D':
         t = p.add_task("Rotação:", total=36)
         for l in range(0, 36, 1):
             ax2.view_init(elev=elev, azim=azim+l*10)
@@ -262,4 +256,4 @@ with Progress() as p:
             p.update(t, advance=1)
 
 clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-clip.write_videofile(os.path.join(video_path,f'saturation_ipRelPerm_{trapping}_{npores}.mp4'))
+clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
