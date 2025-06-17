@@ -10,33 +10,30 @@ from rich.progress import Progress
 op.visualization.set_mpl_style()
 path = os.path.dirname(__file__)
 
-# Setup Necessary Objects
-fps = 5
-
-np.random.seed(10)
-np.set_printoptions(precision=5)
-
-n_pores = 10
-trapping = 'no_trapping'  # Options: 'trapping', 'no_trapping'
-spacing = 1e-6
+npores = 10
+np.random.seed(15)
+fps = 10
+trapping = 'trapping'  # Options: 'trapping', 'no_trapping'
+Lc = 1e-6
+spacing = 1e-4
+# Create a cubic network
+pn = op.network.Cubic(shape=[npores, npores, npores], spacing=spacing)
 
 msize = 100  # marker size for visualization
 lwidth = 3  # line width for visualization
 azim = -60
 elev = 15
 
-# Create a cubic network
-pn = op.network.Demo(shape=[n_pores, n_pores, n_pores], spacing=spacing)
-max_lenght = n_pores*spacing
+max_lenght = npores*spacing
 
-
-fig0,ax0 = plt.subplots()
-op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
-op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
-fig0.savefig(path+"/results/Network3D_CO2WaterStokes_"+str(n_pores)+".png")
+pn_dim = 2
+if len(np.unique(pn['pore.coords'].T[2])) > 1:
+    pn_dim = 3
 
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
 pn.regenerate_models()
+pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
+pn['throat.diameter'] = np.random.rand(pn.Nt)*Lc
 co2 = op.phase.Air(network=pn,name='CO2')
 co2['pore.surface_tension'] = 0.023 # Surface tension of CO2 (N/m)
 co2['pore.contact_angle'] = 180.0
@@ -51,14 +48,24 @@ water.add_model_collection(op.models.collections.phase.water)
 water.add_model_collection(op.models.collections.physics.basic)
 water.regenerate_models()
 
-ip = op.algorithms.InvasionPercolation(network=pn, phase=co2)
+graph_path = os.path.join(path, 'results', f'IPRelPerm_{trapping}', 'graphs')
+video_path = os.path.join(path, 'results', f'IPRelPerm_{trapping}', 'videos')
+frame_path = os.path.join(video_path, f'frames_{npores}_pores')
+
+os.makedirs(graph_path, exist_ok=True)
+os.makedirs(frame_path , exist_ok=True)
+
+fig0,ax0 = plt.subplots()
+op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
+op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
+fig0.savefig(os.path.join(graph_path, f'Network3D_CO2WaterStokes_{trapping}{npores}.png'))
+ip = op.algorithms.Drainage(network=pn, phase=co2)
 Inlet = pn.pores('left')
 Outlet = pn.pores('right')
 ip.set_inlet_BC(pores=Inlet)
 pn['pore.volume'][Inlet] = 0.0
-ip.set_outlet_BC(pores=Outlet, mode='overwrite')
 # Set the capillary pressure model
-ip.run()
+ip.run(pressures=200)
 
 Snwp_num=30
 flow_in = pn.pores('left')
@@ -145,8 +152,8 @@ relperm_wp = []
 
 # Loop through invasion sequence to calculate saturation and relative permeability
 for i in range(start, int(stop), int(step)):
-    co2.regenerate_models();
-    water.regenerate_models();
+    co2.regenerate_models()
+    water.regenerate_models()
     sat = sat_occ_update(network=pn, nwp=co2, wp=water, ip=ip, i=i)
     Snwparr.append(sat)
     Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
@@ -171,15 +178,13 @@ ax1.set_xlabel('Snwp')
 ax1.set_ylabel('Kr')
 ax1.set_xlim(0, 1)
 ax1.set_ylim(0, 1.05)
-ax1.set_title('Relative Permeability in x direction - '+trapping.replace('_',' '), fontsize=2*n_pores)
+ax1.set_title(f'Relative Permeability in x direction - {trapping.replace("_"," ")}', fontsize=16)
 ax1.legend()
-os.makedirs(path+"/results/IPRelPerm_"+trapping+"/graphs/", exist_ok=True)
-fig1.savefig(path+"/results/IPRelPerm_"+trapping+"/graphs/IPRelPerm_"+trapping+".png")
+fig1.savefig(os.path.join(graph_path, f'IPRelPerm_{trapping}.png'))
 
 
 # Making fames of Invasion Percolation saturation field
-os.makedirs(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/", exist_ok=True)
-files = glob.glob(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/*")
+files = glob.glob(os.path.join(frame_path, '*'))
 for f in files:
     os.remove(f)
 
@@ -187,19 +192,20 @@ for f in files:
 image_files = []
 
 fig2 = plt.figure()
-ax2 = fig2.add_subplot(111, projection='3d')
+ax2 = fig2.add_subplot(111) if pn_dim==2 else fig2.add_subplot(111, projection = '3d')
 op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=msize,alpha=0.3, c='b', ax=ax2)
 op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=lwidth, c='b' ,alpha=0.3,ax=ax2)
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=msize, c='r',alpha=0.5,ax=ax2)
-fig2.set_size_inches(n_pores, n_pores)
+fig2.set_size_inches(npores, npores)
 ax2.set_aspect('auto')
-ax2.set_title('Pressure = '+str(data_ip3D_trapping.pc[k])+' Pa',fontsize=2*n_pores)
+ax2.set_title(f'Pressure = {(data_ip3D_trapping.pc[k])} Pa',fontsize=16)
 ax2.set_xlim((0, max_lenght))
 ax2.set_ylim((0, max_lenght))
-ax2.set_zlim((0, max_lenght))
-ax2.view_init(elev=elev, azim=azim)
+if pn_dim == 3:
+    ax2.set_zlim((0, max_lenght))
+    ax2.view_init(elev=elev, azim=azim)
 # plt.show()
-fig2.savefig(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame0.png")
+fig2.savefig(os.path.join(frame_path,'frame0.png'))
 invasion_sequence = np.unique(ip['throat.invasion_sequence'][ip['throat.invasion_sequence']!= np.inf])
 
 steps = 20
@@ -208,47 +214,52 @@ single_step = len(invasion_sequence)//20
 with Progress() as p:
     t = p.add_task("Generating Video:", total=steps)
     for sequence in invasion_sequence[::single_step]:
-        invasion_pressure = max(ip['throat.invasion_pressure'][ip['throat.invasion_sequence'] == sequence])
+        invasion_pressure = max(ip['throat.invasion_pressure'][ip['throat.invasion_sequence'] == sequence])/1000
         k += 1
         inv_throat_pattern = ip['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = ip['pore.invasion_sequence'] <= sequence
-        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2);
-        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize, c='r',ax=ax2);
+        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2)
+        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize, c='r',ax=ax2)
         ax2.set_aspect('auto')
-        ax2.set_title('Pressure = '+str(invasion_pressure)+' Pa',fontsize=2*n_pores)
+        ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
         ax2.set_xlim((0, max_lenght))
         ax2.set_ylim((0, max_lenght))
-        ax2.set_zlim((0, max_lenght))
-        ax2.view_init(elev=elev, azim=azim)
-        fig2.savefig(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
-        image_files.append(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
+        if pn_dim == 3:
+            ax2.set_zlim((0, max_lenght))
+            ax2.view_init(elev=elev, azim=azim)
+        fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+        image_files.append(os.path.join(frame_path,f'frame{k}.png'))
         p.update(t, advance=1)
         non_invaded_pores = ip['pore.invasion_sequence'] > sequence
         non_invaded_throats = ip['throat.invasion_sequence'] > sequence
     t = p.add_task("Irreducible Water:", total=10)
-    for j in range(0, 10, 1):
-        ax2.clear()
-        op.visualization.plot_coordinates(pn, non_invaded_pores, size_by=pn['pore.diameter'], alpha=j/10,markersize=msize, c='b',ax=ax2)
-        op.visualization.plot_connections(pn, non_invaded_throats ,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=j/10, c='b' ,ax=ax2)
-        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=1-j/10, c='r' ,ax=ax2);
-        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize,alpha=1-j/10, c='r',ax=ax2);
-        ax2.set_aspect('auto')
-        ax2.set_title('Pressure = '+str(data_ip3D_trapping.pc[k])+' Pa',fontsize=2*n_pores)
-        ax2.set_xlim((0, max_lenght))
-        ax2.set_ylim((0, max_lenght))
-        ax2.set_zlim((0, max_lenght))
-        ax2.view_init(elev=elev, azim=azim)
-        k += 1
-        fig2.savefig(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
-        image_files.append(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
-        p.update(t, advance=1)
-    t = p.add_task("Rotação:", total=36)
-    for l in range(0, 36, 1):
-        ax2.view_init(elev=elev, azim=azim+l*10)
-        k += 1
-        fig2.savefig(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
-        image_files.append(path+"/results/IPRelPerm_"+trapping+"/videos/frames_"+str(n_pores)+"_pores/frame"+str(k)+".png")
-        p.update(t, advance=1)
+    if trapping == 'trapping':
+        for j in range(0, 10, 1):
+            for collection in ax2.collections:
+                collection.remove()
+            op.visualization.plot_coordinates(pn, non_invaded_pores, size_by=pn['pore.diameter'], alpha=j/10,markersize=msize, c='b',ax=ax2)
+            op.visualization.plot_connections(pn, non_invaded_throats ,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=j/10, c='b' ,ax=ax2)
+            op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=1-j/10, c='r' ,ax=ax2)
+            op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize,alpha=1-j/10, c='r',ax=ax2)
+            ax2.set_title(f'Pressure = {invasion_pressure} kPa',fontsize=16)
+            ax2.set_aspect('auto')
+            ax2.set_xlim((0, max_lenght))
+            ax2.set_ylim((0, max_lenght))
+            if pn_dim == 3:
+                ax2.set_zlim((0, max_lenght))
+                ax2.view_init(elev=elev, azim=azim)
+            k += 1
+            fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+            image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+            p.update(t, advance=1)
+    if pn_dim == 3:
+        t = p.add_task("Rotação:", total=36)
+        for l in range(0, 36, 1):
+            ax2.view_init(elev=elev, azim=azim+l*10)
+            k += 1
+            fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+            image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+            p.update(t, advance=1)
 
 clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-clip.write_videofile(path+"/results/IPRelPerm_"+trapping+"/videos/saturation_ipRelPerm_"+trapping+"_"+str(n_pores)+".mp4")
+clip.write_videofile(os.path.join(video_path,f'saturation_ipRelPerm_{trapping}_{npores}.mp4'))
