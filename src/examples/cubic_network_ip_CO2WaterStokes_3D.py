@@ -59,19 +59,19 @@ fig0,ax0 = plt.subplots()
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
 op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
 fig0.savefig(os.path.join(graph_path, f'Network3D_CO2WaterStokes_{trapping}{npores}.png'))
-ip = op.algorithms.Drainage(network=pn, phase=co2)
+dr = op.algorithms.Drainage(network=pn, phase=co2)
 Inlet = pn.pores('left')
 Outlet = pn.pores('right')
-ip.set_inlet_BC(pores=Inlet)
+dr.set_inlet_BC(pores=Inlet)
 pn['pore.volume'][Inlet] = 0.0
 # Set the capillary pressure model
-ip.run(pressures=200)
+dr.run(pressures=200)
 
 Snwp_num=30
 flow_in = pn.pores('left')
 flow_out = pn.pores('right')
 
-def sat_occ_update(network, nwp, wp, ip, i):
+def sat_occ_update(network, nwp, wp, dr, i):
     r"""
         Calculates the saturation of each phase using the invasion
         sequence from either invasion percolation.
@@ -82,7 +82,7 @@ def sat_occ_update(network, nwp, wp, ip, i):
             non-wetting phase
         wp : phase
             wetting phase
-        ip : IP
+        dr : IP
             invasion percolation (ran before calling this function)
         i: int
             The invasion_sequence limit for masking pores/throats that
@@ -90,8 +90,8 @@ def sat_occ_update(network, nwp, wp, ip, i):
             saturation is found by adding the volume of pores and thorats
             that meet this sequence limit divided by the bulk volume.
     """
-    pore_mask = ip['pore.invasion_sequence'] < i
-    throat_mask = ip['throat.invasion_sequence'] < i
+    pore_mask = dr['pore.invasion_sequence'] < i
+    throat_mask = dr['throat.invasion_sequence'] < i
     sat_p = np.sum(network['pore.volume'][pore_mask])
     sat_t = np.sum(network['throat.volume'][throat_mask])
     sat1 = sat_p + sat_t
@@ -122,7 +122,7 @@ water.add_model(model=model_mp_cond, propname='throat.conduit_hydraulic_conducta
 
 
 # Max Invasion Sequence
-max_seq = np.max(ip['throat.invasion_sequence'])
+max_seq = np.max(dr['throat.invasion_sequence'])
 
 start = 0 # max_seq//Snwp_num
 stop = max_seq+1
@@ -135,13 +135,13 @@ relperm_wp = []
 
 ## Apply Trapping
 if trapping == 'trapping':
-    ip.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
-    ip.apply_trapping()
+    dr.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
+    dr.apply_trapping()
 
 
-tmask = np.isfinite(ip['throat.invasion_sequence'])
+tmask = np.isfinite(dr['throat.invasion_sequence'])
 
-max_seq = np.max(ip['throat.invasion_sequence'][tmask])
+max_seq = np.max(dr['throat.invasion_sequence'][tmask])
 start = 0 # max_seq//Snwp_num
 stop = max_seq+1
 step = max_seq//Snwp_num
@@ -154,7 +154,7 @@ relperm_wp = []
 for i in range(start, int(stop), int(step)):
     co2.regenerate_models()
     water.regenerate_models()
-    sat = sat_occ_update(network=pn, nwp=co2, wp=water, ip=ip, i=i)
+    sat = sat_occ_update(network=pn, nwp=co2, wp=water, dr=dr, i=i)
     Snwparr.append(sat)
     Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
     Rate_abs_wp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
@@ -168,7 +168,7 @@ left = pn.pores('left')
 Domain = pn.pores('left', mode='not')
 k=0
 
-data_ip3D_trapping = ip.pc_curve()
+data_ip3D_trapping = dr.pc_curve()
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111)
@@ -206,7 +206,7 @@ if pn_dim == 3:
     ax2.view_init(elev=elev, azim=azim)
 # plt.show()
 fig2.savefig(os.path.join(frame_path,'frame0.png'))
-invasion_sequence = np.unique(ip['throat.invasion_sequence'][ip['throat.invasion_sequence']!= np.inf])
+invasion_sequence = np.unique(dr['throat.invasion_sequence'][dr['throat.invasion_sequence']!= np.inf])
 
 steps = 20
 single_step = len(invasion_sequence)//20
@@ -214,10 +214,10 @@ single_step = len(invasion_sequence)//20
 with Progress() as p:
     t = p.add_task("Generating Video:", total=steps)
     for sequence in invasion_sequence[::single_step]:
-        invasion_pressure = max(ip['throat.invasion_pressure'][ip['throat.invasion_sequence'] == sequence])/1000
+        invasion_pressure = max(dr['throat.invasion_pressure'][dr['throat.invasion_sequence'] == sequence])/1000
         k += 1
-        inv_throat_pattern = ip['throat.invasion_sequence'] <= sequence
-        inv_pore_pattern = ip['pore.invasion_sequence'] <= sequence
+        inv_throat_pattern = dr['throat.invasion_sequence'] <= sequence
+        inv_pore_pattern = dr['pore.invasion_sequence'] <= sequence
         op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2)
         op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize, c='r',ax=ax2)
         ax2.set_aspect('auto')
@@ -230,8 +230,8 @@ with Progress() as p:
         fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
         p.update(t, advance=1)
-        non_invaded_pores = ip['pore.invasion_sequence'] > sequence
-        non_invaded_throats = ip['throat.invasion_sequence'] > sequence
+        non_invaded_pores = dr['pore.invasion_sequence'] > sequence
+        non_invaded_throats = dr['throat.invasion_sequence'] > sequence
     t = p.add_task("Irreducible Water:", total=10)
     if trapping == 'trapping':
         for j in range(0, 10, 1):
