@@ -56,6 +56,7 @@ os.makedirs(graph_path, exist_ok=True)
 os.makedirs(frame_path , exist_ok=True)
 
 fig0,ax0 = plt.subplots()
+ax0.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
 op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
 fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
@@ -194,6 +195,7 @@ op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diamete
 fig2.set_size_inches(npores, npores)
 ax2.set_aspect('auto')
 ax2.set_title(f'Pressure = {(data_dr_trapping.pc[k])} Pa',fontsize=16)
+ax2.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
 ax2.set_xlim((0, max_lenght))
 ax2.set_ylim((0, max_lenght))
 if pn_dim == '3D':
