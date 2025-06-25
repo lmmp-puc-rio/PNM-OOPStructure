@@ -16,15 +16,54 @@ fps = 10
 trapping = 'trapping'  # Options: 'trapping', 'no_trapping'
 Lc = 1e-6
 spacing = 1e-4
-# Create a cubic network
-pn = op.network.Cubic(shape=[npores, npores, npores], spacing=spacing)
 
 msize = 100  # marker size for visualization
 lwidth = 3  # line width for visualization
 azim = -60
 elev = 15
 
-max_lenght = npores*spacing
+def create_pn_from_dat(**kward):
+
+    project = op.io.network_from_statoil(**kward)
+    pn = project.network
+    pn['pore.diameter'] = pn['pore.radius']*2
+    pn['throat.diameter'] = pn['throat.radius']*2
+    pn['pore.left'] = pn['pore.inlets']
+    pn['pore.right'] = pn['pore.outlets']
+    
+    pn['throat.conduit_lengths'] = np.vstack([
+    pn['throat.conduit_lengths.pore1'],
+    pn['throat.conduit_lengths.throat'],
+    pn['throat.conduit_lengths.pore2']
+    ]).T
+    
+    pn.add_model(propname='pore.cluster_number',
+             model=op.models.network.cluster_number)
+    pn.add_model(propname='pore.cluster_size',
+                model=op.models.network.cluster_size)
+    
+    Ps = pn['pore.cluster_size']< 6004
+    op.topotools.trim(network=pn, pores=Ps)
+    
+    pn['pore.left'] = pn['pore.inlets']
+    pn['pore.right'] = pn['pore.outlets']
+    pn['pore.diameter'] = pn['pore.radius']*2
+    pn['throat.diameter'] = pn['throat.radius']*2
+    return pn
+
+def create_pn_cubic(shape,spacing,Lc):
+    pn = op.network.Cubic(shape=shape, spacing=spacing)
+    pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
+    pn['throat.diameter'] = np.random.rand(pn.Nt)*Lc
+    
+    pn['pore.inlets'] = pn['pore.left']
+    pn['pore.outlets'] = pn['pore.right']
+    return pn
+
+# Create a cubic network
+pn = create_pn_from_dat(path= 'data/rock_samples/Berea',prefix='Berea')
+
+# max_lenght = npores*spacing
 
 pn_dim = '2D'
 if len(np.unique(pn['pore.coords'].T[2])) > 1:
@@ -32,8 +71,6 @@ if len(np.unique(pn['pore.coords'].T[2])) > 1:
 
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
 pn.regenerate_models()
-pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
-pn['throat.diameter'] = np.random.rand(pn.Nt)*Lc
 co2 = op.phase.Air(network=pn,name='CO2')
 co2['pore.surface_tension'] = 0.023 # Surface tension of CO2 (N/m)
 co2['pore.contact_angle'] = 180.0
@@ -61,15 +98,10 @@ op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=ms
 op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
 fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
 dr = op.algorithms.Drainage(network=pn, phase=co2)
-Inlet = pn.pores('left')
-Outlet = pn.pores('right')
-dr.set_inlet_BC(pores=Inlet)
-pn['pore.volume'][Inlet] = 0.0
+dr.set_inlet_BC(pores=pn['pore.inlets'])
+pn['pore.volume'][pn['pore.inlets']] = 0.0
 dr.run(pressures=200)
 
-Snwp_num=30
-flow_in = pn.pores('left')
-flow_out = pn.pores('right')
 
 def sat_occ_update(network, nwp, wp, dr, i):
     r"""
@@ -122,7 +154,8 @@ water.add_model(model=model_mp_cond, propname='throat.conduit_hydraulic_conducta
 
 
 # Max Invasion Sequence
-max_seq = np.max(dr['throat.invasion_sequence'])
+max_seq = np.max(dr['throat.invasion_sequence'])*3
+Snwp_num=50
 
 start = 0 # max_seq//Snwp_num
 stop = max_seq+1
@@ -134,7 +167,7 @@ relperm_wp = []
 
 ## Apply Trapping
 if trapping == 'trapping':
-    dr.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
+    dr.set_outlet_BC(pores=pn['pore.outlets'], mode='overwrite')
     dr.apply_trapping()
 
 tmask = np.isfinite(dr['throat.invasion_sequence'])
@@ -154,16 +187,13 @@ for i in range(start, int(stop), int(step)):
     water.regenerate_models()
     sat = sat_occ_update(network=pn, nwp=co2, wp=water, dr=dr, i=i)
     Snwparr.append(sat)
-    Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
-    Rate_abs_wp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
-    Rate_enwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
-    Rate_ewp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
+    Rate_abs_nwp = Rate_calc(pn, co2, pn['pore.inlets'], pn['pore.outlets'], conductance = 'throat.hydraulic_conductance')
+    Rate_abs_wp = Rate_calc(pn, water, pn['pore.inlets'], pn['pore.outlets'], conductance = 'throat.hydraulic_conductance')
+    Rate_enwp = Rate_calc(pn, co2, pn['pore.inlets'], pn['pore.outlets'], conductance = 'throat.conduit_hydraulic_conductance')
+    Rate_ewp = Rate_calc(pn, water, pn['pore.inlets'], pn['pore.outlets'], conductance = 'throat.conduit_hydraulic_conductance')
     relperm_nwp.append(Rate_enwp/Rate_abs_nwp)
     relperm_wp.append(Rate_ewp/Rate_abs_wp)
 
-
-left = pn.pores('left')
-Domain = pn.pores('left', mode='not')
 k=0
 
 data_dr_trapping = dr.pc_curve()
@@ -194,12 +224,13 @@ op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=msize, c='r',alpha=0.5,ax=ax2)
 fig2.set_size_inches(npores, npores)
 ax2.set_aspect('auto')
-ax2.set_title(f'Pressure = {(data_dr_trapping.pc[k])} Pa',fontsize=16)
+invasion_pressure = min(np.isfinite(dr['throat.invasion_pressure']))/1000  # Convert to kPa
+ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
 ax2.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
-ax2.set_xlim((0, max_lenght))
-ax2.set_ylim((0, max_lenght))
+# ax2.set_xlim((0, max_lenght))
+# ax2.set_ylim((0, max_lenght))
 if pn_dim == '3D':
-    ax2.set_zlim((0, max_lenght))
+    # ax2.set_zlim((0, max_lenght))
     ax2.view_init(elev=elev, azim=azim)
 fig2.savefig(os.path.join(frame_path,'frame0.png'))
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][dr['throat.invasion_sequence']!= np.inf])
@@ -214,14 +245,14 @@ with Progress() as p:
         k += 1
         inv_throat_pattern = dr['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = dr['pore.invasion_sequence'] <= sequence
-        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2)
-        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize, c='r',ax=ax2)
+        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.5, linewidth=lwidth, c='r' ,ax=ax2)
+        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'],alpha=0.5, markersize=msize, c='r',ax=ax2)
         ax2.set_aspect('auto')
         ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
-        ax2.set_xlim((0, max_lenght))
-        ax2.set_ylim((0, max_lenght))
+        # ax2.set_xlim((0, max_lenght))
+        # ax2.set_ylim((0, max_lenght))
         if pn_dim == '3D':
-            ax2.set_zlim((0, max_lenght))
+            # ax2.set_zlim((0, max_lenght))
             ax2.view_init(elev=elev, azim=azim)
         fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
@@ -230,19 +261,19 @@ with Progress() as p:
         non_invaded_throats = dr['throat.invasion_sequence'] > sequence
     t = p.add_task("Irreducible Water:", total=10)
     if trapping == 'trapping':
-        for j in range(0, 10, 1):
+        for j in range(5, 10, 1):
             for collection in ax2.collections:
                 collection.remove()
             op.visualization.plot_coordinates(pn, non_invaded_pores, size_by=pn['pore.diameter'], alpha=j/10,markersize=msize, c='b',ax=ax2)
             op.visualization.plot_connections(pn, non_invaded_throats ,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=j/10, c='b' ,ax=ax2)
             op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=1-j/10, c='r' ,ax=ax2)
             op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize,alpha=1-j/10, c='r',ax=ax2)
-            ax2.set_title(f'Pressure = {invasion_pressure} kPa',fontsize=16)
+            ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
             ax2.set_aspect('auto')
-            ax2.set_xlim((0, max_lenght))
-            ax2.set_ylim((0, max_lenght))
+            # ax2.set_xlim((0, max_lenght))
+            # ax2.set_ylim((0, max_lenght))
             if pn_dim == '3D':
-                ax2.set_zlim((0, max_lenght))
+                # ax2.set_zlim((0, max_lenght))
                 ax2.view_init(elev=elev, azim=azim)
             k += 1
             fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
