@@ -102,7 +102,6 @@ dr.set_inlet_BC(pores=pn['pore.inlets'])
 pn['pore.volume'][pn['pore.inlets']] = 0.0
 dr.run(pressures=200)
 
-Snwp_num=30
 
 def sat_occ_update(network, nwp, wp, dr, i):
     r"""
@@ -155,7 +154,8 @@ water.add_model(model=model_mp_cond, propname='throat.conduit_hydraulic_conducta
 
 
 # Max Invasion Sequence
-max_seq = np.max(dr['throat.invasion_sequence'])
+max_seq = np.max(dr['throat.invasion_sequence'])*3
+Snwp_num=50
 
 start = 0 # max_seq//Snwp_num
 stop = max_seq+1
@@ -224,7 +224,8 @@ op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'
 op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=msize, c='r',alpha=0.5,ax=ax2)
 fig2.set_size_inches(npores, npores)
 ax2.set_aspect('auto')
-ax2.set_title(f'Pressure = {(data_dr_trapping.pc[k])} Pa',fontsize=16)
+invasion_pressure = min(np.isfinite(dr['throat.invasion_pressure']))/1000  # Convert to kPa
+ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
 ax2.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
 # ax2.set_xlim((0, max_lenght))
 # ax2.set_ylim((0, max_lenght))
@@ -244,8 +245,8 @@ with Progress() as p:
         k += 1
         inv_throat_pattern = dr['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = dr['pore.invasion_sequence'] <= sequence
-        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2)
-        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'],alpha=0.8, markersize=msize, c='r',ax=ax2)
+        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.5, linewidth=lwidth, c='r' ,ax=ax2)
+        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'],alpha=0.5, markersize=msize, c='r',ax=ax2)
         ax2.set_aspect('auto')
         ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
         # ax2.set_xlim((0, max_lenght))
@@ -260,7 +261,7 @@ with Progress() as p:
         non_invaded_throats = dr['throat.invasion_sequence'] > sequence
     t = p.add_task("Irreducible Water:", total=10)
     if trapping == 'trapping':
-        for j in range(0, 10, 1):
+        for j in range(5, 10, 1):
             for collection in ax2.collections:
                 collection.remove()
             op.visualization.plot_coordinates(pn, non_invaded_pores, size_by=pn['pore.diameter'], alpha=j/10,markersize=msize, c='b',ax=ax2)
