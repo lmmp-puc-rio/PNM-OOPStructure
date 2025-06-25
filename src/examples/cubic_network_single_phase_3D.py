@@ -3,6 +3,7 @@ import openpnm as op
 import numpy as np
 import os as os
 import glob
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import moviepy.video.io.ImageSequenceClip
 
@@ -18,10 +19,10 @@ np.set_printoptions(precision=5)
 n_pores = 15
 spacing = 1e-6
 
-msize = 50  # marker size for visualization
-lwidth = 3  # line width for visualization
+msize = 100  # marker size for visualization
+lwidth = 5  # line width for visualization
 azim = -60
-elev = 15
+elev = 30
 
 # Create a cubic network
 pn = op.network.Demo(shape=[n_pores, n_pores, n_pores], spacing=spacing)
@@ -69,20 +70,29 @@ PorosityCorrected = Vol_void_corrected / Vol_bulk
 print(f'Porosity Initial Manual: {PorosityInitial:.5f}')
 print(f'Porosity Corrected Manual: {PorosityCorrected:.5f}')
 
+MinPressure = np.min(phase['pore.pressure'])
+MaxPressure = np.max(phase['pore.pressure'])
+cmap = plt.get_cmap('jet')
+norm = mpl.colors.Normalize(vmin=MinPressure, vmax=MaxPressure)
+
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111, projection='3d')
-op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize, color_by=phase['pore.pressure'],alpha=0.3, ax=ax1)
-op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, color_by=phase['throat.pressure'],alpha=0.3, ax=ax1)
+op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize, color_by=phase['pore.pressure'],alpha=0.5, ax=ax1)
+op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, color_by=phase['throat.pressure'],alpha=0.5, ax=ax1)
 ax1.set_aspect('auto')
+mappable = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+mappable.set_array([])
+cbar = fig1.colorbar(mappable, ax=ax1, orientation='horizontal', label='Pressure')
 ax1.set_xlim(0, n_pores*spacing)
 ax1.set_ylim(0, n_pores*spacing)
 ax1.set_zlim(0, n_pores*spacing)
 ax1.set_xlabel('X [m]')
 ax1.set_ylabel('Y [m]')
 ax1.set_zlabel('Z [m]')
-fig1.set_size_inches(n_pores,n_pores*1.2)
-ax1.view_init(elev=elev, azim=azim)
-ax1.set_title('Pressure Field \n' 
+fig1.set_size_inches(n_pores/2,n_pores*1.1/2)
+ax1.view_init(elev=elev, azim=azim, roll=0)
+ax1.set_box_aspect(None, zoom=0.9)
+ax1.set_title('Pressure Field \n'
               + f' Permeability = {K/0.98e-12*1000:.5f} mD \n'
-              + f' Porosity = {PorosityCorrected*100:.2f} % ' ,fontsize=2*n_pores)
+              + f' Porosity = {PorosityCorrected*100:.2f} % ' ,fontsize=16, loc='center')
 fig1.savefig(path+"/results/singlePhase_PressureField.png")
