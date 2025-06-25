@@ -72,20 +72,17 @@ print(f'Porosity Corrected Manual: {PorosityCorrected:.5f}')
 
 MinPressure = np.min(phase['pore.pressure'])
 MaxPressure = np.max(phase['pore.pressure'])
-MeanPressure = np.mean(phase['pore.pressure'])
-
-
-colors = ['red', 'yellow','green', 'blue']
-bounds = [MinPressure, (MinPressure+MeanPressure)/2, (MaxPressure+MeanPressure)/2, MaxPressure]
-cmap = mpl.colormaps.get_cmap('rainbow', list(zip(bounds, colors)), len(colors))
+cmap = plt.get_cmap('jet')
+norm = mpl.colors.Normalize(vmin=MinPressure, vmax=MaxPressure)
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111, projection='3d')
 op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize, color_by=phase['pore.pressure'],alpha=0.5, ax=ax1)
 op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, color_by=phase['throat.pressure'],alpha=0.5, ax=ax1)
 ax1.set_aspect('auto')
-fig1.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-             cax=ax1, orientation='horizontal', label='Some Units')
+mappable = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+mappable.set_array([])
+cbar = fig1.colorbar(mappable, ax=ax1, orientation='horizontal', label='Pressure')
 ax1.set_xlim(0, n_pores*spacing)
 ax1.set_ylim(0, n_pores*spacing)
 ax1.set_zlim(0, n_pores*spacing)
