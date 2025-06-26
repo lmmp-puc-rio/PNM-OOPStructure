@@ -6,9 +6,107 @@ import glob
 import matplotlib.pyplot as plt
 import moviepy.video.io.ImageSequenceClip
 from rich.progress import Progress  
-
+import plotly.graph_objects as go
 op.visualization.set_mpl_style()
 path = os.path.dirname(__file__)
+
+
+def create_fig(xrange,yrange):
+    fig = go.Figure()
+        
+    fig.update_layout(autosize=False, 
+                    width=1000,
+                    height=1000,
+                    xaxis=dict(range=xrange), 
+                    yaxis = dict( range=yrange,
+                                scaleanchor="x",
+                                scaleratio=1,
+                                constrain='domain'),
+                    template="simple_white"
+                )
+    fig.update_xaxes(
+        showline=True,
+        mirror=True,
+        linecolor="black",
+        linewidth=2,
+        ticks="outside",
+        showexponent = 'all',
+        exponentformat = 'e',
+        ticklen=6,
+    )
+    
+    fig.update_yaxes(
+    showline=True,
+    mirror=True,
+    linecolor="black",
+    linewidth=2,
+    ticks="outside",
+    showexponent = 'all',
+    exponentformat = 'e',
+    ticklen=6,
+    )
+    return fig
+
+def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None,linewidth = 2,markersize=20,fig = None):
+    if pores is None:
+        pores = network.pores()
+    if throats is None:
+        throats = network.throats()
+    dim = op.topotools.dimensionality(network)
+    
+    pores_bool = np.isin(network.pores(), pores)
+    throats_bool = np.isin(network.throats(), throats)
+    
+    pore_diam = network['pore.diameter'][pores_bool]
+    markersize = pore_diam / pore_diam.max() * markersize
+    
+    thr_diam = network['throat.diameter'][throats_bool]
+    linewidth = thr_diam / thr_diam.max() * linewidth
+    
+    if fig is None:
+        #layout
+        X, Y, Z = network['pore.coords'].T
+        margin = max(np.max(X), np.max(Y)) * 0.05
+        xmin = min(X) - margin
+        xmax = max(X) + margin
+        ymin = min(Y) - margin
+        ymax = max(Y) + margin
+        fig = create_fig(xrange=[xmin,xmax],yrange=[ymin,ymax])
+    else:
+        fig.data = () 
+        
+    
+    #Throats
+    Ps = np.unique(network['throat.conns'][throats])
+    X, Y, Z = network['pore.coords'][Ps].T
+    xyz = network["pore.coords"][:, dim]
+    P1, P2 = network["throat.conns"][throats].T
+    throat_pos = np.column_stack((xyz[P1], xyz[P2])).reshape((throats.size, 2, dim.sum()))
+    
+    x_t = throat_pos[:, :, 0].reshape(-1, 2)
+    y_t = throat_pos[:, :, 1].reshape(-1, 2)
+
+    for (x12, y12, w, c) in zip(x_t,y_t,linewidth,throat_colors):
+        fig.add_trace(go.Scatter(
+            x=x12,
+            y=y12,
+            mode='lines',
+            line=dict(width=w,color=c),
+            showlegend=False
+        ))
+        
+    #Pores
+    X, Y, Z = network['pore.coords'][pores].T
+
+    fig.add_trace(go.Scatter(
+        x=X, 
+        y=Y, 
+        mode='markers',
+        showlegend=False,
+        marker=dict(size=list(markersize),color=list(pore_colors), opacity=1), 
+        opacity=1))
+    
+    return fig
 
 npores = 10
 np.random.seed(15)
@@ -17,7 +115,7 @@ trapping = 'trapping'  # Options: 'trapping', 'no_trapping'
 Lc = 1e-6
 spacing = 1e-4
 # Create a cubic network
-pn = op.network.Cubic(shape=[npores, npores, npores], spacing=spacing)
+pn = op.network.Cubic(shape=[npores, npores, 1], spacing=spacing)
 
 msize = 100  # marker size for visualization
 lwidth = 3  # line width for visualization
@@ -27,7 +125,7 @@ elev = 15
 max_lenght = npores*spacing
 
 pn_dim = '2D'
-if len(np.unique(pn['pore.coords'].T[2])) > 1:
+if op.topotools.dimensionality(pn).sum() == 3:
     pn_dim = '3D'
 
 pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
@@ -305,10 +403,13 @@ op.visualization.plot_coordinates(pn, pores_air, size_by=pn['pore.diameter'],alp
 fig3.savefig(os.path.join(frame_path,f'frame{k}.png'))
 image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 
+water_color = "rgba(0,0,255,1)"
+air_color = "rgba(255,0,0,1)"
+
 for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.invasion_sequence'])]):
     k += 1
-    for collection in ax3.collections:
-            collection.remove()
+    # for collection in ax3.collections:
+    #         collection.remove()
     inv_throat_pattern = im['throat.invasion_sequence'] <= sequence
     inv_pore_pattern = im['pore.invasion_sequence'] <= sequence
     
@@ -318,17 +419,27 @@ for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.
     throats_water = np.union1d(throats_water,new_throats)
     pores_water = np.union1d(pores_water,new_pores)
     
-    throats_air = np.setdiff1d(throats_air, new_throats)
-    pores_air = np.setdiff1d(pores_air, new_pores)
+    # throats_air = np.setdiff1d(throats_air, new_throats)
+    # pores_air = np.setdiff1d(pores_air, new_pores)
     
-    op.visualization.plot_coordinates(pn, pores_water, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='b',ax=ax3)
-    op.visualization.plot_coordinates(pn, pores_air, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='r',ax=ax3)
+    pores_bool = np.isin(pn.pores(), pores_water)
+    throats_bool = np.isin(pn.throats(), throats_water)
     
-    op.visualization.plot_connections(pn, throats_water ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='b' ,ax=ax3)
-    op.visualization.plot_connections(pn, throats_air ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='r' ,ax=ax3)
+    pore_colors = np.where(pores_bool, water_color, air_color)
+    throat_colors = np.where(throats_bool, water_color, air_color)
     
-    fig3.savefig(os.path.join(frame_path,f'frame{k}.png'))
+    fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors)
+    
+    fig.write_image(os.path.join(frame_path,f'frame{k}.png'),width=1000, height=1000,scale=1)
+    
+    # op.visualization.plot_coordinates(pn, pores_water, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='b',ax=ax3)
+    # op.visualization.plot_coordinates(pn, pores_air, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='r',ax=ax3)
+    
+    # op.visualization.plot_connections(pn, throats_water ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='b' ,ax=ax3)
+    # op.visualization.plot_connections(pn, throats_air ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='r' ,ax=ax3)
+    
+    # fig3.savefig(os.path.join(frame_path,f'frame{k}.png'))
     image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 
-clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
+# clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
+# clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
