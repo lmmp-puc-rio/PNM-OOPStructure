@@ -47,6 +47,96 @@ def create_fig(xrange,yrange):
     )
     return fig
 
+def build_pn_figure(network,
+                    pores=None,
+                    throats=None,
+                    linewidth=2,
+                    markersize=20,
+                    template="simple_white"):
+    """
+    Cria o Figure COMPLETO uma só vez.
+    Retorna: fig, throat_trace_ids, pore_trace_id
+    """
+    if pores is None:
+        pores = network.pores()
+    if throats is None:
+        throats = network.throats()
+
+    pores   = np.asarray(pores)
+    throats = np.asarray(throats)
+
+    # --- dimensões normalizadas ---
+    thr_diam = network["throat.diameter"][throats]
+    pore_diam = network["pore.diameter"][pores]
+    line_w = (thr_diam / thr_diam.max()) * linewidth
+    mark_s = (pore_diam / pore_diam.max()) * markersize
+
+    # --- coordenadas ---
+    coords = network["pore.coords"]
+    P1, P2 = network["throat.conns"][throats].T
+
+    # --- layout quadrado ---
+    margin = 0.05 * coords[:, :2].max()
+    xmin, xmax = coords[:, 0].min() - margin, coords[:, 0].max() + margin
+    ymin, ymax = coords[:, 1].min() - margin, coords[:, 1].max() + margin
+
+    fig = go.Figure()
+    fig.update_layout(
+        autosize=False, width=1000, height=1000,
+        xaxis=dict(range=[xmin, xmax], showline=True, mirror=True,
+                   linecolor="black", linewidth=2, ticks="outside",
+                   showexponent="all", exponentformat="e", ticklen=6),
+        yaxis=dict(range=[ymin, ymax], showline=True, mirror=True,
+                   scaleanchor="x", scaleratio=1, constrain="domain",
+                   linecolor="black", linewidth=2, ticks="outside",
+                   showexponent="all", exponentformat="e", ticklen=6),
+        margin=dict(l=0, r=0, t=0, b=0),
+        template=template
+    )
+
+    # --- adiciona gargantas (UM SCATTER POR GARGANTA) --------------
+    throat_trace_ids = []
+    for x12, y12, w in zip(coords[[P1, P2], 0].T,
+                           coords[[P1, P2], 1].T,
+                           line_w):
+        throat_trace_ids.append(len(fig.data))
+        fig.add_trace(go.Scatter(
+            x=x12, y=y12,
+            mode="lines",
+            line=dict(width=float(w), color="black"),  # cor placeholder
+            showlegend=False
+        ))
+
+    # --- adiciona poros --------------------------------------------
+    pore_trace_id = len(fig.data)
+    fig.add_trace(go.Scatter(
+        x=coords[pores, 0], y=coords[pores, 1],
+        mode="markers",
+        marker=dict(size=mark_s, color="black", opacity=1),
+        opacity=1, showlegend=False
+    ))
+
+    return fig, throat_trace_ids, pore_trace_id
+
+
+def recolor_pn(fig, throat_trace_ids, pore_trace_id,
+               throat_colors, pore_colors):
+    """
+    Muda apenas as cores (mantém espessura e layout).
+    • throat_colors : list/array → 1 cor por garganta
+    • pore_colors   : list/array → 1 cor por poro
+    """
+    # ------ gargantas ------
+        
+    if len(throat_colors) != len(throat_trace_ids):
+        raise ValueError("throat_colors deve ter 1 cor para cada garganta")
+    for tid, col in zip(throat_trace_ids, throat_colors):
+        fig.data[tid].line.color = col
+
+    # ------ poros ----------
+    fig.data[pore_trace_id].marker.color = pore_colors
+    
+
 def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None, linewidth = 2,markersize=20,fig = None,layout=None):
     if pores is None:
         pores = network.pores()
@@ -169,8 +259,7 @@ frame_path = os.path.join(video_path, f'frames_{npores}_pores')
 
 os.makedirs(graph_path, exist_ok=True)
 os.makedirs(frame_path , exist_ok=True)
-
-fig = pn_plot(pn,pore_colors=water_color,throat_colors=water_color)
+fig, thr_ids, pore_id = build_pn_figure(pn)
 save_fig(fig, os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
 
 dr = op.algorithms.Drainage(network=pn, phase=co2)
@@ -300,7 +389,12 @@ for f in files:
 
 image_files = []
 
-fig = pn_plot(pn,pore_colors=water_color,throat_colors=water_color,fig = fig)
+# fig = pn_plot(pn,pore_colors=water_color,throat_colors=water_color,fig = fig)
+
+pore_colors = np.full(pn.Np,water_color)
+throat_colors = np.full(pn.Nt,water_color)
+
+recolor_pn(fig, thr_ids, pore_id, pore_colors=pore_colors,throat_colors=throat_colors)
 save_fig(fig, os.path.join(frame_path,'frame0.png'))
 
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][np.isfinite(dr['throat.invasion_sequence'])])
@@ -329,7 +423,8 @@ with Progress() as p:
         throat_colors = np.where(throats_bool, air_color, water_color)
         
         title = f'Pressure = {invasion_pressure:.2f} kPa'
-        fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+        # fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+        recolor_pn(fig, thr_ids, pore_id, pore_colors=pore_colors,throat_colors=throat_colors)
         save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
         
@@ -346,7 +441,8 @@ with Progress() as p:
             pore_colors = np.where(pores_bool, new_air_color, new_water_color)
             throat_colors = np.where(throats_bool, new_air_color, new_water_color)
 
-            fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+            # fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+            recolor_pn(fig, thr_ids, pore_id, pore_colors=pore_colors,throat_colors=throat_colors)
             save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
             image_files.append(os.path.join(frame_path,f'frame{k}.png'))
             p.update(t, advance=1)
@@ -403,7 +499,8 @@ for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.
     pore_colors = np.where(pores_bool, water_color, air_color)
     throat_colors = np.where(throats_bool, water_color, air_color)
     
-    fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig=fig)
+    # fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig=fig)
+    recolor_pn(fig, thr_ids, pore_id, pore_colors=pore_colors,throat_colors=throat_colors)
     save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
 
     image_files.append(os.path.join(frame_path,f'frame{k}.png'))
