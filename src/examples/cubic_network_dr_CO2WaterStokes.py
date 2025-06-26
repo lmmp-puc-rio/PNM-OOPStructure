@@ -47,11 +47,16 @@ def create_fig(xrange,yrange):
     )
     return fig
 
-def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None,linewidth = 2,markersize=20,fig = None):
+def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None, linewidth = 2,markersize=20,fig = None,layout=None):
     if pores is None:
         pores = network.pores()
     if throats is None:
         throats = network.throats()
+    if isinstance(pore_colors,str):
+        pore_colors = np.full(len(pores),pore_colors)
+    if isinstance(throat_colors,str):
+        throat_colors = np.full(len(throats),throat_colors)
+        
     dim = op.topotools.dimensionality(network)
     
     pores_bool = np.isin(network.pores(), pores)
@@ -75,7 +80,6 @@ def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None
     else:
         fig.data = () 
         
-    
     #Throats
     Ps = np.unique(network['throat.conns'][throats])
     X, Y, Z = network['pore.coords'][Ps].T
@@ -106,7 +110,15 @@ def pn_plot(network,pores=None,throats=None,pore_colors=None, throat_colors=None
         marker=dict(size=list(markersize),color=list(pore_colors), opacity=1), 
         opacity=1))
     
+    if layout is not None:
+        fig.update_layout(layout)
+    
     return fig
+
+def save_fig(fig,file_name):
+    
+    fig.write_image(file_name,width=1000, height=1000,scale=1)
+    return
 
 npores = 10
 np.random.seed(15)
@@ -121,6 +133,9 @@ msize = 100  # marker size for visualization
 lwidth = 3  # line width for visualization
 azim = -60
 elev = 15
+
+water_color = "rgba(0,0,255,1)"
+air_color = "rgba(255,0,0,1)"
 
 max_lenght = npores*spacing
 
@@ -155,11 +170,9 @@ frame_path = os.path.join(video_path, f'frames_{npores}_pores')
 os.makedirs(graph_path, exist_ok=True)
 os.makedirs(frame_path , exist_ok=True)
 
-fig0,ax0 = plt.subplots()
-ax0.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
-op.visualization.plot_coordinates(pn, size_by=pn['pore.diameter'], markersize=msize,  c='b',alpha=0.8, ax=ax0)
-op.visualization.plot_connections(pn, size_by=pn['throat.diameter'], linewidth=lwidth, c='b',alpha=0.8, ax=ax0)
-fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
+fig = pn_plot(pn,pore_colors=water_color,throat_colors=water_color)
+save_fig(fig, os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
+
 dr = op.algorithms.Drainage(network=pn, phase=co2)
 Inlet = pn.pores('left')
 Outlet = pn.pores('right')
@@ -287,24 +300,16 @@ for f in files:
 
 image_files = []
 
-fig2 = plt.figure()
-ax2 = fig2.add_subplot(111, projection = '3d') if pn_dim == '3D' else fig2.add_subplot(111)
-op.visualization.plot_coordinates(pn, pn.pores('left',mode= 'nor'),size_by=pn['pore.diameter'], markersize=msize,alpha=0.3, c='b', ax=ax2)
-op.visualization.plot_connections(pn, pn.throats() ,size_by=pn['throat.diameter'], linewidth=lwidth, c='b' ,alpha=0.3,ax=ax2)
-op.visualization.plot_coordinates(pn, pn.pores('left'), size_by=pn['pore.diameter'], markersize=msize, c='r',alpha=0.5,ax=ax2)
-fig2.set_size_inches(npores, npores)
-ax2.set_aspect('auto')
-ax2.set_title(f'Pressure = {(data_dr_trapping.pc[k])} Pa',fontsize=16)
-ax2.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
-ax2.grid(False)
-if pn_dim == '3D':
-    ax2.set_zlim((0, max_lenght))
-    ax2.view_init(elev=elev, azim=azim)
-fig2.savefig(os.path.join(frame_path,'frame0.png'))
+fig = pn_plot(pn,pore_colors=water_color,throat_colors=water_color,fig = fig)
+save_fig(fig, os.path.join(frame_path,'frame0.png'))
+
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][np.isfinite(dr['throat.invasion_sequence'])])
 
 steps = 20
 single_step = len(invasion_sequence)//20
+
+throats_air = np.array([])
+pores_air = np.array([])
 
 with Progress() as p:
     t = p.add_task("Generating Video:", total=steps)
@@ -313,48 +318,47 @@ with Progress() as p:
         k += 1
         inv_throat_pattern = dr['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = dr['pore.invasion_sequence'] <= sequence
-        op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'],alpha=0.8, linewidth=lwidth, c='r' ,ax=ax2)
-        op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize, c='r',ax=ax2)
-        ax2.set_aspect('auto')
-        ax2.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
-        ax2.set_xlim((0, max_lenght))
-        ax2.set_ylim((0, max_lenght))
-        if pn_dim == '3D':
-            ax2.set_zlim((0, max_lenght))
-            ax2.view_init(elev=elev, azim=azim)
-        fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+        
+        throats_air = np.union1d(throats_air,pn.throats()[inv_throat_pattern])
+        pores_air = np.union1d(pores_air,pn.pores()[inv_pore_pattern])
+
+        pores_bool = np.isin(pn.pores(), pores_air)
+        throats_bool = np.isin(pn.throats(), throats_air)
+        
+        pore_colors = np.where(pores_bool, air_color, water_color)
+        throat_colors = np.where(throats_bool, air_color, water_color)
+        
+        title = f'Pressure = {invasion_pressure:.2f} kPa'
+        fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+        save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+        
         p.update(t, advance=1)
         non_invaded_pores = dr['pore.invasion_sequence'] > sequence
         non_invaded_throats = dr['throat.invasion_sequence'] > sequence
     t = p.add_task("Irreducible Water:", total=10)
     if trapping == 'trapping':
         for j in range(0, 10, 1):
-            for collection in ax2.collections:
-                collection.remove()
-            op.visualization.plot_coordinates(pn, non_invaded_pores, size_by=pn['pore.diameter'], alpha=j/10,markersize=msize, c='b',ax=ax2)
-            op.visualization.plot_connections(pn, non_invaded_throats ,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=j/10, c='b' ,ax=ax2)
-            op.visualization.plot_connections(pn, inv_throat_pattern,size_by=pn['throat.diameter'], linewidth=lwidth,alpha=1-j/10, c='r' ,ax=ax2)
-            op.visualization.plot_coordinates(pn, inv_pore_pattern, size_by=pn['pore.diameter'], markersize=msize,alpha=1-j/10, c='r',ax=ax2)
-            ax2.set_title(f'Pressure = {invasion_pressure} kPa',fontsize=16)
-            ax2.set_aspect('auto')
-            ax2.set_xlim((0, max_lenght))
-            ax2.set_ylim((0, max_lenght))
-            if pn_dim == '3D':
-                ax2.set_zlim((0, max_lenght))
-                ax2.view_init(elev=elev, azim=azim)
             k += 1
-            fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+            new_water_color = water_color.rsplit(",", 1)[0] + f",{j/10})"
+            new_air_color = air_color.rsplit(",", 1)[0] + f",{1-j/10})"
+
+            pore_colors = np.where(pores_bool, new_air_color, new_water_color)
+            throat_colors = np.where(throats_bool, new_air_color, new_water_color)
+
+            fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig = fig, layout = {'title':title})
+            save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
             image_files.append(os.path.join(frame_path,f'frame{k}.png'))
             p.update(t, advance=1)
-    if pn_dim == '3D':
-        t = p.add_task("Rotação:", total=36)
-        for l in range(0, 36, 1):
-            ax2.view_init(elev=elev, azim=azim+l*10)
-            k += 1
-            fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
-            image_files.append(os.path.join(frame_path,f'frame{k}.png'))
-            p.update(t, advance=1)
+            
+    # if pn_dim == '3D':
+    #     t = p.add_task("Rotação:", total=36)
+    #     for l in range(0, 36, 1):
+    #         ax2.view_init(elev=elev, azim=azim+l*10)
+    #         k += 1
+    #         fig2.savefig(os.path.join(frame_path,f'frame{k}.png'))
+    #         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+    #         p.update(t, advance=1)
 
 #IMBIBITION
 
@@ -376,40 +380,14 @@ water_ic_throat = im['throat.invaded'].copy()
 
 im.run(pressures=imb_pressures)
 
-
-fig3 = plt.figure()
-ax3 = fig3.add_subplot(111, projection = '3d') if pn_dim == '3D' else fig3.add_subplot(111)
-
-fig3.set_size_inches(npores, npores)
-ax3.set_aspect('auto')
-ax3.grid(False)
-if pn_dim == '3D':
-    ax3.set_zlim((0, max_lenght))
-    ax3.view_init(elev=elev, azim=azim)
-
 k += 1
 
 throats_water = pn.throats()[water_ic_throat]
 pores_water = pn.pores()[water_ic_pore]
 
-throats_air = pn.throats()[~water_ic_throat]
-pores_air = pn.pores()[~water_ic_pore]
-
-op.visualization.plot_connections(pn, throats_water,size_by=pn['throat.diameter'],alpha=0.3, linewidth=lwidth, c='b' ,ax=ax3)
-op.visualization.plot_coordinates(pn, pores_water , size_by=pn['pore.diameter'],alpha=0.3, markersize=msize, c='b',ax=ax3)
-op.visualization.plot_connections(pn, throats_air,size_by=pn['throat.diameter'],alpha=0.3, linewidth=lwidth, c='r' ,ax=ax3)
-op.visualization.plot_coordinates(pn, pores_air, size_by=pn['pore.diameter'],alpha=0.3, markersize=msize, c='r',ax=ax3)
-
-fig3.savefig(os.path.join(frame_path,f'frame{k}.png'))
-image_files.append(os.path.join(frame_path,f'frame{k}.png'))
-
-water_color = "rgba(0,0,255,1)"
-air_color = "rgba(255,0,0,1)"
-
 for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.invasion_sequence'])]):
     k += 1
-    # for collection in ax3.collections:
-    #         collection.remove()
+
     inv_throat_pattern = im['throat.invasion_sequence'] <= sequence
     inv_pore_pattern = im['pore.invasion_sequence'] <= sequence
     
@@ -419,27 +397,16 @@ for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.
     throats_water = np.union1d(throats_water,new_throats)
     pores_water = np.union1d(pores_water,new_pores)
     
-    # throats_air = np.setdiff1d(throats_air, new_throats)
-    # pores_air = np.setdiff1d(pores_air, new_pores)
-    
     pores_bool = np.isin(pn.pores(), pores_water)
     throats_bool = np.isin(pn.throats(), throats_water)
     
     pore_colors = np.where(pores_bool, water_color, air_color)
     throat_colors = np.where(throats_bool, water_color, air_color)
     
-    fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors)
-    
-    fig.write_image(os.path.join(frame_path,f'frame{k}.png'),width=1000, height=1000,scale=1)
-    
-    # op.visualization.plot_coordinates(pn, pores_water, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='b',ax=ax3)
-    # op.visualization.plot_coordinates(pn, pores_air, size_by=pn['pore.diameter'],alpha=0.6, markersize=msize, c='r',ax=ax3)
-    
-    # op.visualization.plot_connections(pn, throats_water ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='b' ,ax=ax3)
-    # op.visualization.plot_connections(pn, throats_air ,size_by=pn['throat.diameter'],alpha=0.6, linewidth=lwidth, c='r' ,ax=ax3)
-    
-    # fig3.savefig(os.path.join(frame_path,f'frame{k}.png'))
+    fig = pn_plot(pn,pore_colors=pore_colors,throat_colors=throat_colors,fig=fig)
+    save_fig(fig, os.path.join(frame_path,f'frame{k}.png'))
+
     image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 
-# clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
-# clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
+clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
+clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
