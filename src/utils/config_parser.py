@@ -1,0 +1,76 @@
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+import json
+
+class NetworkType(Enum):
+    CUBIC       = "cubic"
+    IMPORTED    = "imported"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("cubic", "cube"):
+            return cls.CUBIC
+        if value in ("imported", "import", "data", "dat"):
+            return cls.IMPORTED
+        raise ValueError(f"NetworkType: {value}")
+
+class AlgorithmType(Enum):
+    DRAINAGE    = "drainage"
+    IMBIBITION  = "imbibition"
+
+@dataclass
+class NetworkConfig:
+    type:       str
+    size:       tuple | None = None
+    path:       str | None = None
+    prefix:     str | None = None
+    spacing:    float | None = None
+    seed:       int | None = None
+
+@dataclass
+class PhaseConfig:
+    name:               str
+    viscosity:          float | None = None
+    surface_tension:    float | None = None
+    contact_angle:      float | None = None
+
+@dataclass
+class AlgorithmConfig:
+    type:   AlgorithmType
+
+@dataclass
+class ProjectConfig:
+    network:    NetworkConfig
+    # phases:       tuple[PhaseConfig, ...]
+    # algorithm:    AlgorithmConfig
+    
+class ConfigParser:
+    
+    @classmethod
+    def from_file(cls, path: str | Path):
+        with open(path, "r", encoding="utf-8") as f:
+            raw_confing = json.load(f)
+        return cls._build_config(raw_confing)
+    
+    @classmethod
+    def _build_config(cls, raw: dict):
+        
+        return ProjectConfig(
+            network        = cls._build_network(raw["network"]),
+            # phases       = cls._build_phases(raw["phases"]),
+            # algorithm= cls._build_boundaries(raw["algorithm"])
+            )
+    
+    @classmethod
+    def _build_network(cls, network_data: dict):
+
+        return NetworkConfig(
+            type        = NetworkType(network_data.get("type")),
+            path        = network_data.get("path"),
+            prefix      = network_data.get("prefix"),
+            size        = network_data.get("size"),
+            spacing     = network_data.get("spacing"), 
+            seed        = network_data.get("seed"),
+        )
