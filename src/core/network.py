@@ -1,6 +1,6 @@
 from utils.config_parser import NetworkType
-from enum import Enum
 import numpy as np
+import openpnm as op
 
 class Network:
     def __init__(self, config):
@@ -16,18 +16,14 @@ class Network:
         else:
             raise ValueError(f"NetworkType: {self.config.type}")
 
-    def _create_cubic(self):
-        from openpnm.network import Cubic
-        Lc = 1e-6
-        pn = Cubic(shape=self.config.size, spacing=self.config.spacing)
-        pn['pore.diameter'] = np.random.rand(pn.Np)*Lc
-        pn['throat.diameter'] = np.random.rand(pn.Nt)*Lc
-        
+    def _create_cubic(self): 
+        pn = op.network.Cubic(shape=self.config.size, spacing=self.config.spacing)
+        pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
+        pn.regenerate_models()
         return pn
 
     def _create_imported(self):
-        from openpnm.io import network_from_statoil
-        project = network_from_statoil(path = self.config.path, prefix = self.config.prefix)
+        project = op.io.network_from_statoil(path = self.config.path, prefix = self.config.prefix)
         pn = project.network
         pn['pore.diameter'] = pn['pore.radius']*2
         pn['throat.diameter'] = pn['throat.radius']*2
