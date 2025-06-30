@@ -103,17 +103,24 @@ def sat_occ_update(network, nwp, wp, dr, i):
             saturation is found by adding the volume of pores and thorats
             that meet this sequence limit divided by the bulk volume.
     """
+    phase = next((phase for phase in pn.project.phases if phase.name == dr.settings.phase))
     pore_mask = dr['pore.invasion_sequence'] < i
     throat_mask = dr['throat.invasion_sequence'] < i
+    
+    if phase['pore.contact_angle'][0]<90:
+        pore_mask = ~pore_mask
+        throat_mask = ~throat_mask
+             
+    nwp['pore.occupancy'] = pore_mask
+    nwp['throat.occupancy'] = throat_mask
+    wp['throat.occupancy'] = ~throat_mask
+    wp['pore.occupancy'] = ~pore_mask
+    
     sat_p = np.sum(network['pore.volume'][pore_mask])
     sat_t = np.sum(network['throat.volume'][throat_mask])
     sat1 = sat_p + sat_t
     bulk = network['pore.volume'].sum() + network['throat.volume'].sum()
     sat = sat1/bulk
-    nwp['pore.occupancy'] = pore_mask
-    nwp['throat.occupancy'] = throat_mask
-    wp['throat.occupancy'] = 1-throat_mask
-    wp['pore.occupancy'] = 1-pore_mask
     return sat
 
 def Rate_calc(network, phase, left, outlet, conductance):
@@ -133,17 +140,6 @@ co2.add_model(model=model_mp_cond, propname='throat.conduit_hydraulic_conductanc
 water.add_model(model=model_mp_cond, propname='throat.conduit_hydraulic_conductance',
               throat_conductance='throat.hydraulic_conductance', mode='medium', regen_mode='deferred')
 
-
-# Max Invasion Sequence
-max_seq = np.max(dr['throat.invasion_sequence'])
-
-start = 0 # max_seq//Snwp_num
-stop = max_seq+1
-step = max_seq//Snwp_num
-print("Start: ", start, " Stop: ", stop, " Step: ", step)
-Snwparr = []
-relperm_nwp = []
-relperm_wp = []
 
 ## Apply Trapping
 if trapping == 'trapping':
@@ -182,12 +178,12 @@ data_dr_trapping = dr.pc_curve()
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111)
-ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp')
-ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp')
+ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp',color='red')
+ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp',color='blue')
 ax1.set_xlabel('Snwp')
 ax1.set_ylabel('Kr')
 ax1.set_xlim(0, 1)
-ax1.set_ylim(0, 1.05)
+ax1.set_ylim(-0.01, 1.05)
 ax1.set_title(f'Relative Permeability in x direction - {trapping.replace("_"," ")}', fontsize=16)
 ax1.legend()
 fig1.savefig(os.path.join(graph_path, f'DRRelPerm{pn_dim}_{trapping}.png'))
@@ -335,6 +331,61 @@ for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.
     
     fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
     image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+if trapping == 'trapping':
+    for j in range(0, 10, 1):
+        for collection in ax0.collections:
+            collection.remove()
+            
+        k += 1
+        if len(throats_water)>0:
+            op.visualization.plot_connections(pn, throats_water, alpha=1-j/10, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
+        if len(throats_air)>0:
+            op.visualization.plot_connections(pn, throats_air, alpha=j/10, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
+        
+        if len(pores_water)>0:
+            op.visualization.plot_coordinates(pn, pores_water, alpha=1-j/10, markersize=markersize[pores_water], c='b',ax=ax0)
+        if len(pores_air)>0:
+            op.visualization.plot_coordinates(pn, pores_air, alpha=j/10, markersize=markersize[pores_air], c='r',ax=ax0)
+        
+        fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
+        image_files.append(os.path.join(frame_path,f'frame{k}.png'))
+        
+if pn_dim == '3D':
+    t = p.add_task("Rotação:", total=36)
+    for l in range(0, 36, 1):
+        ax0.view_init(elev=elev, azim=azim+l*10)
+        k += 1
+        fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
+        image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 
 clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(image_files, fps=fps)
 clip.write_videofile(os.path.join(video_path,f'saturation_DRRelPerm{pn_dim}_{trapping}_{npores}.mp4'))
+
+
+tmask = np.isfinite(im['throat.invasion_sequence']) & (im['throat.invasion_sequence'] > 0)
+max_seq = np.max(im['throat.invasion_sequence'][tmask])
+start = np.min(im['throat.invasion_sequence'][tmask])
+relperm_sequence = np.linspace(start,max_seq,Snwp_num).astype(int)
+Snwparr = []
+relperm_nwp = []
+relperm_wp = []
+
+# Loop through invasion sequence to calculate saturation and relative permeability
+for i in relperm_sequence:
+    co2.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
+    water.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
+    sat = sat_occ_update(network=pn, nwp=co2, wp=water, dr=im, i=i)
+    Snwparr.append(sat)
+    Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
+    Rate_abs_wp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
+    Rate_enwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
+    Rate_ewp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
+    relperm_nwp.append(Rate_enwp/Rate_abs_nwp)
+    relperm_wp.append(Rate_ewp/Rate_abs_wp)
+
+for collection in ax1.lines:
+    collection.remove()
+    
+ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp',color='red')
+ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp',color='blue')
+fig1.savefig(os.path.join(graph_path, f'IMRelPerm{pn_dim}_{trapping}.png'))
