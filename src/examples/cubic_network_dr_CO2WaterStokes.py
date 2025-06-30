@@ -40,7 +40,7 @@ co2['pore.contact_angle'] = 150.0
 
 co2.add_model_collection(op.models.collections.phase.air)
 co2.add_model_collection(op.models.collections.physics.basic)
-co2.regenerate_models()
+co2.regenerate_models(exclude=['pore.surface_tension','pore.contact_angle'])
 water = op.phase.Water(network=pn,name='water')
 water['throat.diffusivity'] = 1e-8  # Water's diffusivity in scCO2 ( m²/s )
 water['pore.viscosity'] = 1e-5  # Water's viscosity ( Pas )
@@ -48,7 +48,7 @@ water['pore.surface_tension'] = 0.023 # Surface tension of CO2 (N/m)
 water['pore.contact_angle'] = 30.0
 water.add_model_collection(op.models.collections.phase.water)
 water.add_model_collection(op.models.collections.physics.basic)
-water.regenerate_models()
+water.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
 
 graph_path = os.path.join(path, 'results', f'DRRelPerm{pn_dim}_{trapping}', 'graphs')
 video_path = os.path.join(path, 'results', f'DRRelPerm{pn_dim}_{trapping}', 'videos')
@@ -81,7 +81,6 @@ dr.set_inlet_BC(pores=Inlet)
 pn['pore.volume'][Inlet] = 0.0
 dr.run(pressures=200)
 
-Snwp_num=30
 flow_in = pn.pores('left')
 flow_out = pn.pores('right')
 
@@ -118,7 +117,7 @@ def sat_occ_update(network, nwp, wp, dr, i):
     return sat
 
 def Rate_calc(network, phase, left, outlet, conductance):
-    phase.regenerate_models()
+    phase.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
     St_p = op.algorithms.StokesFlow(network=network, phase=phase)
     St_p.settings._update({'conductance' : conductance})
     St_p.set_value_BC(pores=left, values=1)
@@ -151,21 +150,20 @@ if trapping == 'trapping':
     dr.set_outlet_BC(pores=pn.pores('right'), mode='overwrite')
     dr.apply_trapping()
 
-tmask = np.isfinite(dr['throat.invasion_sequence'])
+Snwp_num=80
 
+tmask = np.isfinite(dr['throat.invasion_sequence']) & (dr['throat.invasion_sequence'] > 0)
 max_seq = np.max(dr['throat.invasion_sequence'][tmask])
-start = 0 # max_seq//Snwp_num
-stop = max_seq+1
-step = max_seq//Snwp_num
-print("Start: ", start, " Stop: ", stop, " Step: ", step)
+start = np.min(dr['throat.invasion_sequence'][tmask])
+relperm_sequence = np.linspace(start,max_seq,Snwp_num).astype(int)
 Snwparr = []
 relperm_nwp = []
 relperm_wp = []
 
 # Loop through invasion sequence to calculate saturation and relative permeability
-for i in range(start, int(stop), int(step)):
-    co2.regenerate_models()
-    water.regenerate_models()
+for i in relperm_sequence:
+    co2.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
+    water.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
     sat = sat_occ_update(network=pn, nwp=co2, wp=water, dr=dr, i=i)
     Snwparr.append(sat)
     Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
@@ -214,12 +212,10 @@ ax0.set_title(f'Pressure = {(data_dr_trapping.pc[k]):.2f} Pa',fontsize=16)
 fig0.savefig(os.path.join(frame_path,'frame0.png'))
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][np.isfinite(dr['throat.invasion_sequence'])])
 
-steps = 20
-single_step = len(invasion_sequence)//20
 
 with Progress() as p:
-    t = p.add_task("Generating Video:", total=steps)
-    for sequence in invasion_sequence[::single_step]:
+    t = p.add_task("Generating Video:", total=len(invasion_sequence))
+    for sequence in invasion_sequence:
         invasion_pressure = max(dr['throat.invasion_pressure'][dr['throat.invasion_sequence'] == sequence])/1000
         for collection in ax0.collections:
             collection.remove()
@@ -280,7 +276,6 @@ with Progress() as p:
 
 #IMBIBITION
 
-water['throat.entry_pressure'] = water['throat.entry_pressure'] *-1
 im = op.algorithms.Drainage(network=pn, phase=water)
 im.set_inlet_BC(pores=Inlet,mode= 'overwrite')
 im.set_outlet_BC(pores=Outlet, mode='overwrite')
