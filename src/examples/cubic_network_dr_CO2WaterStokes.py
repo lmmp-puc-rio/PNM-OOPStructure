@@ -425,3 +425,16 @@ ax1.plot(Snwparr_im, relperm_wp_im, '<-', label='Kr_wp_im',color=im_water_color)
 ax1.legend()
 ax1.set_title(f'Relative Permeability in x direction - wetting phase', fontsize=16)
 fig1.savefig(os.path.join(graph_path, f'IMRelPerm{pn_dim}_wp.png'))
+
+fig2, ax2 = plt.subplots(nrows=1, ncols=2,figsize=(12, 5))
+
+ax2[0].hist(pn['pore.diameter'], edgecolor='k',bins=20)
+ax2[0].set_xlabel('diameter [m]')
+ax2[0].set_ylabel('frequency')
+ax2[0].set_title('pore')
+    
+ax2[1].hist(pn['throat.diameter'], edgecolor='k',bins=20)
+ax2[1].set_xlabel('diameter [m]')
+ax2[1].set_ylabel('frequency')
+ax2[1].set_title('throat')
+fig2.savefig(os.path.join(graph_path, f'SizeDistribution{pn_dim}.png'))
