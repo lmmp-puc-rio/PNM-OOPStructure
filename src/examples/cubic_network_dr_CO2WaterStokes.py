@@ -24,7 +24,10 @@ lwidth = 3  # line width for visualization
 azim = -60
 elev = 15
 
-max_lenght = npores*spacing
+dr_water_color = "#003fec"
+im_water_color = "#03095f"
+dr_air_color = "#ff0000"
+im_air_color = "#720303"
 
 pn_dim = '2D'
 if len(np.unique(pn['pore.coords'].T[2])) > 1:
@@ -71,8 +74,8 @@ markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
 
 if pn_dim == '3D':
     ax0.view_init(elev=elev, azim=azim)
-op.visualization.plot_coordinates(pn, markersize=markersize, c='b', alpha=0.8, ax=ax0)
-op.visualization.plot_connections(pn, linewidth=linewidth, c='b', alpha=0.8, ax=ax0)
+op.visualization.plot_coordinates(pn, markersize=markersize, c=dr_water_color, alpha=0.8, ax=ax0)
+op.visualization.plot_connections(pn, linewidth=linewidth, c=dr_water_color, alpha=0.8, ax=ax0)
 fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_CO2WaterStokes_{trapping}{npores}.png'))
 dr = op.algorithms.Drainage(network=pn, phase=co2)
 Inlet = pn.pores('left')
@@ -178,8 +181,8 @@ data_dr_trapping = dr.pc_curve()
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111)
-ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp',color='red')
-ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp',color='blue')
+ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp',color=dr_air_color)
+ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp',color=dr_water_color)
 ax1.set_xlabel('Snwp')
 ax1.set_ylabel('Kr')
 ax1.set_xlim(0, 1)
@@ -202,8 +205,8 @@ pores_water = pn.pores()
 
 throats_air = np.array([])
 pores_air = np.array([])
-op.visualization.plot_connections(pn, throats_water, linewidth=linewidth[throats_water], c='b' ,alpha=0.8,ax=ax0)
-op.visualization.plot_coordinates(pn, pores_water, markersize=markersize[pores_water], c='r',alpha=0.8,ax=ax0)
+op.visualization.plot_connections(pn, throats_water, linewidth=linewidth[throats_water], c=dr_water_color ,alpha=0.8,ax=ax0)
+op.visualization.plot_coordinates(pn, pores_water, markersize=markersize[pores_water], c=dr_air_color,alpha=0.8,ax=ax0)
 ax0.set_title(f'Pressure = {(data_dr_trapping.pc[k]):.2f} Pa',fontsize=16)
 fig0.savefig(os.path.join(frame_path,'frame0.png'))
 invasion_sequence = np.unique(dr['throat.invasion_sequence'][np.isfinite(dr['throat.invasion_sequence'])])
@@ -229,13 +232,13 @@ with Progress() as p:
         throats_air = np.union1d(throats_air, new_throats).astype(int)
         pores_air = np.union1d(pores_air, new_pores).astype(int)
         if len(throats_water)>0:    
-            op.visualization.plot_connections(pn, throats_water, alpha=0.8, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
+            op.visualization.plot_connections(pn, throats_water, alpha=0.8, linewidth=linewidth[throats_water], c=dr_water_color ,ax=ax0)
         if len(throats_air)>0:
-            op.visualization.plot_connections(pn, throats_air, alpha=0.8, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
+            op.visualization.plot_connections(pn, throats_air, alpha=0.8, linewidth=linewidth[throats_air], c=dr_air_color ,ax=ax0)
         if len(pores_water)>0:
-            op.visualization.plot_coordinates(pn, pores_water, alpha=0.8, markersize=markersize[pores_water], c='b',ax=ax0)
+            op.visualization.plot_coordinates(pn, pores_water, alpha=0.8, markersize=markersize[pores_water], c=dr_water_color,ax=ax0)
         if len(pores_air)>0:
-            op.visualization.plot_coordinates(pn, pores_air, alpha=0.8, markersize=markersize[pores_air], c='r',ax=ax0)
+            op.visualization.plot_coordinates(pn, pores_air, alpha=0.8, markersize=markersize[pores_air], c=dr_air_color,ax=ax0)
         
         ax0.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
         fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
@@ -249,14 +252,14 @@ with Progress() as p:
                 
             k += 1
             if len(throats_water)>0:
-                op.visualization.plot_connections(pn, throats_water, alpha=j/10, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
+                op.visualization.plot_connections(pn, throats_water, alpha=j/10, linewidth=linewidth[throats_water], c=dr_water_color ,ax=ax0)
             if len(throats_air)>0:
-                op.visualization.plot_connections(pn, throats_air, alpha=1-j/10, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
+                op.visualization.plot_connections(pn, throats_air, alpha=1-j/10, linewidth=linewidth[throats_air], c=dr_air_color ,ax=ax0)
             
             if len(pores_water)>0:
-                op.visualization.plot_coordinates(pn, pores_water, alpha=j/10, markersize=markersize[pores_water], c='b',ax=ax0)
+                op.visualization.plot_coordinates(pn, pores_water, alpha=j/10, markersize=markersize[pores_water], c=dr_water_color,ax=ax0)
             if len(pores_air)>0:
-                op.visualization.plot_coordinates(pn, pores_air, alpha=1-j/10, markersize=markersize[pores_air], c='r',ax=ax0)
+                op.visualization.plot_coordinates(pn, pores_air, alpha=1-j/10, markersize=markersize[pores_air], c=dr_air_color,ax=ax0)
             
             fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
             image_files.append(os.path.join(frame_path,f'frame{k}.png'))
@@ -299,15 +302,16 @@ pores_water = pn.pores()[water_ic_pore]
 throats_air = pn.throats()[~water_ic_throat]
 pores_air = pn.pores()[~water_ic_pore]
 
-op.visualization.plot_connections(pn, throats_water, alpha=0.3, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
-op.visualization.plot_coordinates(pn, pores_water, alpha=0.3, markersize=markersize[pores_water], c='b',ax=ax0)
-op.visualization.plot_connections(pn, throats_air, alpha=0.3, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
-op.visualization.plot_coordinates(pn, pores_air, alpha=0.3, markersize=markersize[pores_air], c='r',ax=ax0)
+op.visualization.plot_connections(pn, throats_water, alpha=0.8, linewidth=linewidth[throats_water], c=dr_water_color ,ax=ax0)
+op.visualization.plot_coordinates(pn, pores_water, alpha=0.8, markersize=markersize[pores_water], c=dr_water_color,ax=ax0)
+op.visualization.plot_connections(pn, throats_air, alpha=0.8, linewidth=linewidth[throats_air], c=dr_air_color ,ax=ax0)
+op.visualization.plot_coordinates(pn, pores_air, alpha=0.8, markersize=markersize[pores_air], c=dr_air_color,ax=ax0)
 
 fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
 image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 
 for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.invasion_sequence'])]):
+    invasion_pressure = max(im['throat.invasion_pressure'][im['throat.invasion_sequence'] == sequence])/1000
     k += 1
     for collection in ax0.collections:
             collection.remove()
@@ -317,18 +321,24 @@ for sequence in np.unique(im['throat.invasion_sequence'][np.isfinite(im['throat.
     new_pores = np.setdiff1d(pn.pores()[inv_pore_pattern], pores_water).astype(int)
     new_throats = np.setdiff1d(pn.throats()[inv_throat_pattern], throats_water).astype(int)
     
-    throats_water = np.union1d(throats_water,new_throats).astype(int)
-    pores_water = np.union1d(pores_water,new_pores).astype(int)
-    
     throats_air = np.setdiff1d(throats_air, new_throats).astype(int)
     pores_air = np.setdiff1d(pores_air, new_pores).astype(int)
     
-    op.visualization.plot_connections(pn, throats_water, alpha=0.8, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
-    op.visualization.plot_connections(pn, throats_air, alpha=0.8, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
+    if len(throats_water)>0:
+        op.visualization.plot_connections(pn, throats_water, alpha=0.8, linewidth=linewidth[throats_water], c=dr_water_color ,ax=ax0)
+    if len(new_throats)>0:
+        op.visualization.plot_connections(pn, new_throats, alpha=0.8, linewidth=linewidth[new_throats], c=im_water_color ,ax=ax0)
+    if len(throats_air)>0:
+        op.visualization.plot_connections(pn, throats_air, alpha=0.8, linewidth=linewidth[throats_air], c=dr_air_color ,ax=ax0)
     
-    op.visualization.plot_coordinates(pn, pores_water, alpha=0.8, markersize=markersize[pores_water], c='b',ax=ax0)
-    op.visualization.plot_coordinates(pn, pores_air, alpha=0.8, markersize=markersize[pores_air], c='r',ax=ax0)
+    if len(pores_water)>0:
+        op.visualization.plot_coordinates(pn, pores_water, alpha=0.8, markersize=markersize[pores_water], c=dr_water_color,ax=ax0)
+    if len(new_pores)>0:
+        op.visualization.plot_coordinates(pn, new_pores, alpha=0.8, markersize=markersize[new_pores], c=im_water_color,ax=ax0)
+    if len(pores_air)>0:
+        op.visualization.plot_coordinates(pn, pores_air, alpha=0.8, markersize=markersize[pores_air], c=dr_air_color,ax=ax0)
     
+    ax0.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
     fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
     image_files.append(os.path.join(frame_path,f'frame{k}.png'))
 if trapping == 'trapping':
@@ -338,14 +348,18 @@ if trapping == 'trapping':
             
         k += 1
         if len(throats_water)>0:
-            op.visualization.plot_connections(pn, throats_water, alpha=1-j/10, linewidth=linewidth[throats_water], c='b' ,ax=ax0)
+            op.visualization.plot_connections(pn, throats_water, alpha=1-j/10, linewidth=linewidth[throats_water], c=dr_water_color ,ax=ax0)
+        if len(new_throats)>0:
+            op.visualization.plot_connections(pn, new_throats, alpha=1-j/10, linewidth=linewidth[new_throats], c=im_water_color ,ax=ax0)
         if len(throats_air)>0:
-            op.visualization.plot_connections(pn, throats_air, alpha=j/10, linewidth=linewidth[throats_air], c='r' ,ax=ax0)
+            op.visualization.plot_connections(pn, throats_air, alpha=j/10, linewidth=linewidth[throats_air], c=dr_air_color ,ax=ax0)
         
         if len(pores_water)>0:
-            op.visualization.plot_coordinates(pn, pores_water, alpha=1-j/10, markersize=markersize[pores_water], c='b',ax=ax0)
+            op.visualization.plot_coordinates(pn, pores_water, alpha=1-j/10, markersize=markersize[pores_water], c=dr_water_color,ax=ax0)
+        if len(new_pores)>0:
+            op.visualization.plot_coordinates(pn, new_pores, alpha=1-j/10, markersize=markersize[new_pores], c=im_water_color,ax=ax0)
         if len(pores_air)>0:
-            op.visualization.plot_coordinates(pn, pores_air, alpha=j/10, markersize=markersize[pores_air], c='r',ax=ax0)
+            op.visualization.plot_coordinates(pn, pores_air, alpha=j/10, markersize=markersize[pores_air], c=dr_air_color,ax=ax0)
         
         fig0.savefig(os.path.join(frame_path,f'frame{k}.png'))
         image_files.append(os.path.join(frame_path,f'frame{k}.png'))
@@ -366,26 +380,48 @@ tmask = np.isfinite(im['throat.invasion_sequence']) & (im['throat.invasion_seque
 max_seq = np.max(im['throat.invasion_sequence'][tmask])
 start = np.min(im['throat.invasion_sequence'][tmask])
 relperm_sequence = np.linspace(start,max_seq,Snwp_num).astype(int)
-Snwparr = []
-relperm_nwp = []
-relperm_wp = []
+Snwparr_im = []
+relperm_nwp_im = []
+relperm_wp_im = []
 
 # Loop through invasion sequence to calculate saturation and relative permeability
 for i in relperm_sequence:
     co2.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
     water.regenerate_models(exclude=['pore.contact_angle','pore.surface_tension','throat.diffusivity','pore.viscosity'])
     sat = sat_occ_update(network=pn, nwp=co2, wp=water, dr=im, i=i)
-    Snwparr.append(sat)
+    Snwparr_im.append(sat)
     Rate_abs_nwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
     Rate_abs_wp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.hydraulic_conductance')
     Rate_enwp = Rate_calc(pn, co2, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
     Rate_ewp = Rate_calc(pn, water, flow_in, flow_out, conductance = 'throat.conduit_hydraulic_conductance')
-    relperm_nwp.append(Rate_enwp/Rate_abs_nwp)
-    relperm_wp.append(Rate_ewp/Rate_abs_wp)
+    relperm_nwp_im.append(Rate_enwp/Rate_abs_nwp)
+    relperm_wp_im.append(Rate_ewp/Rate_abs_wp)
 
 for collection in ax1.lines:
     collection.remove()
+ax1.get_legend().remove()
     
-ax1.plot(Snwparr, relperm_nwp, '*-', label='Kr_nwp',color='red')
-ax1.plot(Snwparr, relperm_wp, 'o-', label='Kr_wp',color='blue')
+ax1.plot(Snwparr_im, relperm_nwp_im, '*-', label='Kr_nwp',color=dr_air_color)
+ax1.plot(Snwparr_im, relperm_wp_im, 'o-', label='Kr_wp',color=im_water_color)
+ax1.legend()
 fig1.savefig(os.path.join(graph_path, f'IMRelPerm{pn_dim}_{trapping}.png'))
+
+for collection in ax1.lines:
+    collection.remove()
+ax1.get_legend().remove()
+    
+ax1.plot(Snwparr, relperm_nwp, '>-', label='Kr_nwp',color=dr_air_color)
+ax1.plot(Snwparr_im, relperm_nwp_im, '<-', label='Kr_nwp_im',color=im_air_color)
+ax1.legend()
+ax1.set_title(f'Relative Permeability in x direction - non-wetting phase', fontsize=16)
+fig1.savefig(os.path.join(graph_path, f'IMRelPerm{pn_dim}_nwp.png'))
+
+for collection in ax1.lines:
+    collection.remove()
+ax1.get_legend().remove()
+    
+ax1.plot(Snwparr, relperm_wp, '>-', label='Kr_wp',color=dr_water_color)
+ax1.plot(Snwparr_im, relperm_wp_im, '<-', label='Kr_wp_im',color=im_water_color)
+ax1.legend()
+ax1.set_title(f'Relative Permeability in x direction - wetting phase', fontsize=16)
+fig1.savefig(os.path.join(graph_path, f'IMRelPerm{pn_dim}_wp.png'))
