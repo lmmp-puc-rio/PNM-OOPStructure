@@ -15,6 +15,19 @@ class NetworkType(Enum):
         if value in ("imported", "import", "data", "dat"):
             return cls.IMPORTED
         raise ValueError(f"NetworkType: {value}")
+    
+class PhaseModel(Enum):
+    WATER   = "water"
+    AIR     = "air"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("water"):
+            return cls.WATER
+        if value in ("air","co2"):
+            return cls.AIR
+        raise ValueError(f"PhaseModel: {value}")
 
 class AlgorithmType(Enum):
     DRAINAGE    = "drainage"
@@ -31,10 +44,10 @@ class NetworkConfig:
 
 @dataclass
 class PhaseConfig:
-    name:               str
-    viscosity:          float | None = None
-    surface_tension:    float | None = None
-    contact_angle:      float | None = None
+    model:      str
+    name:       str
+    color:      str
+    properties: dict | None = None
 
 @dataclass
 class AlgorithmConfig:
@@ -43,7 +56,7 @@ class AlgorithmConfig:
 @dataclass
 class ProjectConfig:
     network:    NetworkConfig
-    # phases:       tuple[PhaseConfig, ...]
+    phases:     tuple[PhaseConfig, ...]
     # algorithm:    AlgorithmConfig
     
 class ConfigParser:
@@ -58,8 +71,8 @@ class ConfigParser:
     def _build_config(cls, raw: dict):
         
         return ProjectConfig(
-            network        = cls._build_network(raw["network"]),
-            # phases       = cls._build_phases(raw["phases"]),
+            network = cls._build_network(raw["network"]),
+            phases  = cls._build_phases(raw["phases"]),
             # algorithm= cls._build_boundaries(raw["algorithm"])
             )
     
@@ -74,3 +87,17 @@ class ConfigParser:
             spacing     = network_data.get("spacing"), 
             seed        = network_data.get("seed"),
         )
+        
+    @classmethod
+    def _build_phases(cls, phase_data: dict):
+        phases = []
+        for phase in phase_data:
+            phases.append(
+                PhaseConfig(
+                model       = PhaseModel(phase.get("model")),
+                name        = phase.get("name"),
+                color       = phase.get("color"),
+                properties  = phase.get("properties")
+                )
+            )
+        return tuple(phases)
