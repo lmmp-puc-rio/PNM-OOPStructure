@@ -29,10 +29,6 @@ class PhaseModel(Enum):
             return cls.AIR
         raise ValueError(f"PhaseModel: {value}")
 
-class AlgorithmType(Enum):
-    DRAINAGE    = "drainage"
-    IMBIBITION  = "imbibition"
-
 @dataclass
 class NetworkConfig:
     type:       str
