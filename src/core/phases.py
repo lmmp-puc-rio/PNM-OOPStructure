@@ -6,9 +6,13 @@ class Phases:
     def __init__(self, network, config):
         self.config = config.phases
         self.network = network
-        self.phases = dict()
+        self.phases = []
         for dict_phase in self.config:
-            self.phases[dict_phase.name] = (self._create_phase(dict_phase))
+            self.phases.append(
+                dict(name = dict_phase.name,
+                     model = self._create_phase(dict_phase),
+                     color = dict_phase.color)) 
+            
         
     def _create_phase(self, raw: dict):
         if raw.model == PhaseModel.WATER:
@@ -21,21 +25,12 @@ class Phases:
             raise ValueError(f"PhaseModel: {raw.model}")
         
         phase.add_model_collection(op.models.collections.physics.basic)
-        phase.regenerate_models()
         
         for prop in raw.properties.keys():
-            phase[prop] = raw.properties[prop]
+            phase.add_model(propname = prop,
+                            model = op.models.misc.constant,
+                            value = raw.properties[prop])
+            
+        phase.regenerate_models()
         
         return phase
-    
-    def regenerate_models(self,name = None):
-        props_by_name = self._get_default_properties()
-        if name is None:
-            for key in props_by_name.keys():
-                self.phases[key].regenerate_models(exclude=props_by_name[key].keys())
-        else:
-            self.phases[name].regenerate_models(exclude=props_by_name[name].keys())
-                  
-        
-    def _get_default_properties(self):
-        return {phase.name: phase.properties for phase in self.config}
