@@ -31,8 +31,8 @@ class PhaseModel(Enum):
 
 @dataclass
 class NetworkConfig:
-    type:       str
-    size:       tuple | None = None
+    type:       NetworkType
+    size:       tuple[int, ...] | None = None
     path:       str | None = None
     prefix:     str | None = None
     spacing:    float | None = None
