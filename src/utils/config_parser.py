@@ -29,35 +29,63 @@ class PhaseModel(Enum):
             return cls.AIR
         raise ValueError(f"PhaseModel: {value}")
 
-class AlgorithmType(Enum):
-    DRAINAGE    = "drainage"
-    IMBIBITION  = "imbibition"
-
 @dataclass
 class NetworkConfig:
-    type:       str
-    size:       tuple | None = None
+    type:       NetworkType
+    size:       tuple[int, ...] | None = None
     path:       str | None = None
     prefix:     str | None = None
     spacing:    float | None = None
     seed:       int | None = None
+    
+    def __post_init__(self):
+        if self.type is NetworkType.CUBIC:
+            missing = [p for p in ("size", "spacing", "seed")
+                       if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Cubic Network missing parameters: {', '.join(missing)}")
+            
+        elif self.type is NetworkType.IMPORTED:
+            missing = [p for p in ("path", "prefix")
+                       if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
+            
+        if isinstance(self.size, list):
+            self.size = tuple(self.size)
 
 @dataclass
 class PhaseConfig:
-    model:      str
+    model:      PhaseModel
     name:       str
     color:      str
     properties: dict | None = None
 
 @dataclass
 class AlgorithmConfig:
-    type:   AlgorithmType
+    name:           str
+    phase:          str
+    inlet:          tuple[str, ...]
+    outlet:         tuple[str, ...] | None = None
+    pressures:      int | None = None
+    
+    def __post_init__(self):
+        if isinstance(self.inlet, str):
+            self.inlet = (self.inlet,)
+        if isinstance(self.inlet, list):
+            self.inlet = tuple(self.inlet)
+        if isinstance(self.outlet, str):
+            self.outlet = (self.outlet,)
+        if isinstance(self.outlet, list):
+            self.outlet = tuple(self.outlet)
+        if isinstance(self.pressures, float):
+            self.pressures = int(self.pressures)
 
 @dataclass
 class ProjectConfig:
     network:    NetworkConfig
     phases:     tuple[PhaseConfig, ...]
-    # algorithm:    AlgorithmConfig
+    algorithm:  tuple[AlgorithmConfig, ...]
     
 class ConfigParser:
     
@@ -71,9 +99,9 @@ class ConfigParser:
     def _build_config(cls, raw: dict):
         
         return ProjectConfig(
-            network = cls._build_network(raw["network"]),
-            phases  = cls._build_phases(raw["phases"]),
-            # algorithm= cls._build_boundaries(raw["algorithm"])
+            network     = cls._build_network(raw["network"]),
+            phases      = cls._build_phases(raw["phases"]),
+            algorithm   = cls._build_algorithm(raw["algorithm"])
             )
     
     @classmethod
@@ -101,3 +129,18 @@ class ConfigParser:
                 )
             )
         return tuple(phases)
+    
+    @classmethod
+    def _build_algorithm(cls, algorithm_data: dict):
+        algorithms = []
+        for algorithm in algorithm_data:
+            algorithms.append(
+                AlgorithmConfig(
+                    name            = algorithm.get("name"),
+                    phase           = algorithm.get("phase"),
+                    inlet           = algorithm.get("inlet"),
+                    outlet          = algorithm.get("outlet"),
+                    pressures       = algorithm.get("pressures"),
+                )
+            )
+        return tuple(algorithms)
