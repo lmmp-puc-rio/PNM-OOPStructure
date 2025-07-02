@@ -1,5 +1,4 @@
 from utils.config_parser import PhaseModel
-import numpy as np
 import openpnm as op
 
 class Phases:
@@ -34,3 +33,6 @@ class Phases:
         phase.regenerate_models()
         
         return phase
+    
+    def get_model(self, name):
+        return next(p["model"] for p in self.phases if p["name"] == name)
