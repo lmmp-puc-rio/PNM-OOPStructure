@@ -37,10 +37,26 @@ class NetworkConfig:
     prefix:     str | None = None
     spacing:    float | None = None
     seed:       int | None = None
+    
+    def __post_init__(self):
+        if self.type is NetworkType.CUBIC:
+            missing = [p for p in ("size", "spacing", "seed")
+                       if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Cubic Network missing parameters: {', '.join(missing)}")
+            
+        elif self.type is NetworkType.IMPORTED:
+            missing = [p for p in ("path", "prefix")
+                       if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
+            
+        if isinstance(self.size, list):
+            self.size = tuple(self.size)
 
 @dataclass
 class PhaseConfig:
-    model:      str
+    model:      PhaseModel
     name:       str
     color:      str
     properties: dict | None = None
