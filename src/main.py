@@ -72,29 +72,46 @@ k = 0
 def algorithm_figure(alg,fig,ax):
     global k
     
+    clear_ax(ax)
     inv_phase = alg.settings.phase
     inv_color = next(p["color"] for p in phases.phases if p["name"] == inv_phase)
     not_inv_color = next(p["color"] for p in phases.phases if p["name"] != inv_phase)
-    throats_invaded = pn.network.Ts[alg['throat.ic_invaded']].copy()
-    pores_invaded = pn.network.Ps[alg['pore.ic_invaded']].copy()
+    throats_invaded_ic = pn.network.Ts[alg['throat.ic_invaded']].copy()
+    pores_invaded_ic = pn.network.Ps[alg['pore.ic_invaded']].copy()
+    throats_not_invaded_ic = np.setdiff1d(pn.network.Ts, throats_invaded_ic).astype(int)
+    pores_not_invaded_ic = np.setdiff1d(pn.network.Ps, pores_invaded_ic).astype(int)
+
+    if len(throats_invaded_ic)>0:
+            op.visualization.plot_connections(pn.network, throats_invaded_ic, alpha=0.5, linewidth=linewidth[throats_invaded_ic], c=inv_color ,ax=ax)
+    if len(pores_invaded_ic)>0:
+        op.visualization.plot_coordinates(pn.network, pores_invaded_ic, alpha=0.5, markersize=markersize[pores_invaded_ic], c=inv_color,ax=ax)
+    if len(throats_not_invaded_ic)>0:
+            op.visualization.plot_connections(pn.network, throats_not_invaded_ic, alpha=0.8, linewidth=linewidth[throats_not_invaded_ic], c=not_inv_color ,ax=ax)
+    if len(pores_not_invaded_ic)>0:
+        op.visualization.plot_coordinates(pn.network, pores_not_invaded_ic, alpha=0.8, markersize=markersize[pores_not_invaded_ic], c=not_inv_color,ax=ax)
+    
+    ax.set_title(f'Initial Condition',fontsize=16)
+    fig.savefig(os.path.join(frame_path,f'frame{k}.png'))
+    k +=1
     
     invasion_sequence = np.unique(alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
     
     for sequence in invasion_sequence:
         clear_ax(ax)
-        if len(throats_invaded)>0:
-            op.visualization.plot_connections(pn.network, throats_invaded, alpha=0.8, linewidth=linewidth[throats_invaded], c='#000000' ,ax=ax)
-        if len(pores_invaded)>0:
-            op.visualization.plot_coordinates(pn.network, pores_invaded, alpha=0.8, markersize=markersize[pores_invaded], c='#000000',ax=ax)
+        
+        if len(throats_invaded_ic)>0:
+            op.visualization.plot_connections(pn.network, throats_invaded_ic, alpha=0.5, linewidth=linewidth[throats_invaded_ic], c=inv_color ,ax=ax)
+        if len(pores_invaded_ic)>0:
+            op.visualization.plot_coordinates(pn.network, pores_invaded_ic, alpha=0.5, markersize=markersize[pores_invaded_ic], c=inv_color,ax=ax)
         invasion_pressure = max(alg['throat.invasion_pressure'][alg['throat.invasion_sequence'] == sequence])/1000
         inv_throat_pattern = alg['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = alg['pore.invasion_sequence'] <= sequence
         
-        new_throats = np.setdiff1d(pn.network.Ts[inv_throat_pattern], throats_invaded).astype(int)
-        new_pores = np.setdiff1d(pn.network.Ps[inv_pore_pattern], pores_invaded).astype(int)
+        new_throats = np.setdiff1d(pn.network.Ts[inv_throat_pattern], throats_invaded_ic).astype(int)
+        new_pores = np.setdiff1d(pn.network.Ps[inv_pore_pattern], pores_invaded_ic).astype(int)
         
-        throats_not_invaded = pn.network.Ts[~inv_throat_pattern]
-        pores_not_invaded = pn.network.Ps[~inv_pore_pattern]
+        throats_not_invaded = np.setdiff1d(throats_not_invaded_ic,new_throats)
+        pores_not_invaded = np.setdiff1d(pores_not_invaded_ic,new_pores)
         
         if len(new_throats)>0:
             op.visualization.plot_connections(pn.network, new_throats, alpha=0.8, linewidth=linewidth[new_throats], c=inv_color ,ax=ax)
