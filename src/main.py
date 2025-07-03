@@ -61,10 +61,18 @@ op.visualization.plot_connections(pn.network, linewidth=linewidth, c=phase_ic_co
 fig0.savefig(os.path.join(graph_path, f'Network{pn_dim}_{Np_col}.png'))
 
 
+centroids = pn.network.coords[pn.network.conns].mean(axis=1)
+x_throat = centroids[:, 0] 
+y_throat = centroids[:, 1]
+
 
 def clear_ax(ax):
     for collection in ax.collections:
             collection.remove()
+            
+def clear_text_ax(ax):
+    for text in ax.texts:
+            text.remove()
 
 k = 0
 
@@ -74,6 +82,18 @@ def algorithm_figure(alg,fig,ax):
     
     clear_ax(ax)
     inv_phase = alg.settings.phase
+    phase_model = alg.project[inv_phase]
+    entry_pressure = phase_model['throat.entry_pressure']
+    entry_pressure = entry_pressure/1000
+    for x, y, p in zip(x_throat, y_throat, entry_pressure):
+        ax.text(x, y,
+                f'{p:.2f}',
+                fontsize=8,
+                ha='center', va='center',
+                color='black', 
+                zorder=3)
+        
+    
     inv_color = next(p["color"] for p in phases.phases if p["name"] == inv_phase)
     not_inv_color = next(p["color"] for p in phases.phases if p["name"] != inv_phase)
     throats_invaded_ic = pn.network.Ts[alg['throat.ic_invaded']].copy()
@@ -107,8 +127,12 @@ def algorithm_figure(alg,fig,ax):
         inv_throat_pattern = alg['throat.invasion_sequence'] <= sequence
         inv_pore_pattern = alg['pore.invasion_sequence'] <= sequence
         
-        new_throats = np.setdiff1d(pn.network.Ts[inv_throat_pattern], throats_invaded_ic).astype(int)
-        new_pores = np.setdiff1d(pn.network.Ps[inv_pore_pattern], pores_invaded_ic).astype(int)
+        # new_throats = np.setdiff1d(pn.network.Ts[inv_throat_pattern], throats_invaded_ic).astype(int)
+        # new_pores = np.setdiff1d(pn.network.Ps[inv_pore_pattern], pores_invaded_ic).astype(int)
+        
+        new_throats = pn.network.Ts[inv_throat_pattern]
+        new_pores =pn.network.Ps[inv_pore_pattern]
+        
         
         throats_not_invaded = np.setdiff1d(throats_not_invaded_ic,new_throats)
         pores_not_invaded = np.setdiff1d(pores_not_invaded_ic,new_pores)
@@ -130,3 +154,4 @@ def algorithm_figure(alg,fig,ax):
 
 for alg in algorithm.algorithm:
     algorithm_figure(alg,fig0,ax0)
+    clear_text_ax(ax0)
