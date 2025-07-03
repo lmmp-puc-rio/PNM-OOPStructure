@@ -6,6 +6,8 @@ import os as os
 import matplotlib.pyplot as plt
 import numpy as np
 import openpnm as op
+from itertools import count
+from pathlib import Path
 
 path = os.path.dirname(__file__)
 json_file = 'data/base.json'
@@ -65,93 +67,201 @@ centroids = pn.network.coords[pn.network.conns].mean(axis=1)
 x_throat = centroids[:, 0] 
 y_throat = centroids[:, 1]
 
+# ---------------------------------------------------------------
+# utilidades
+# ---------------------------------------------------------------
+_frame_id = count()            # 0, 1, 2, ...
 
-def clear_ax(ax):
-    for collection in ax.collections:
-            collection.remove()
-            
-def clear_text_ax(ax):
-    for text in ax.texts:
-            text.remove()
+def _clear_ax(ax):
+    for art in ax.lines[:] + ax.collections[:]:
+        art.remove()
+    for txt in ax.texts[:]:
+        txt.remove()
+    leg = ax.get_legend()
+    if leg:
+        leg.remove()
 
-k = 0
+# ---------------------------------------------------------------
+# painel ESQUERDO  –––  invasão passo-a-passo
+# ---------------------------------------------------------------
+def _draw_invasion(ax, *, pn, alg, sequence,
+                   x_throat, y_throat, entry_pressure,
+                   inv_color, not_inv_color,
+                   linewidth, markersize,
+                   throats_ic, pores_ic):
+    """
+    Estado da invasão ATÉ 'sequence' (mesma aparência do seu algorithm_figure).
+    """
+    plt.sca(ax)  
+    _clear_ax(ax)
 
-#algorithm figure
-def algorithm_figure(alg,fig,ax):
-    global k
-    
-    clear_ax(ax)
-    inv_phase = alg.settings.phase
-    phase_model = alg.project[inv_phase]
-    entry_pressure = phase_model['throat.entry_pressure']
-    entry_pressure = entry_pressure/1000
+    # --- 1. rótulo da entry-pressure em cada garganta -----------------
     for x, y, p in zip(x_throat, y_throat, entry_pressure):
-        ax.text(x, y,
-                f'{p:.2f}',
-                fontsize=8,
-                ha='center', va='center',
-                color='black', 
-                zorder=3)
-        
-    
-    inv_color = next(p["color"] for p in phases.phases if p["name"] == inv_phase)
-    not_inv_color = next(p["color"] for p in phases.phases if p["name"] != inv_phase)
-    throats_invaded_ic = pn.network.Ts[alg['throat.ic_invaded']].copy()
-    pores_invaded_ic = pn.network.Ps[alg['pore.ic_invaded']].copy()
-    throats_not_invaded_ic = np.setdiff1d(pn.network.Ts, throats_invaded_ic).astype(int)
-    pores_not_invaded_ic = np.setdiff1d(pn.network.Ps, pores_invaded_ic).astype(int)
+        ax.text(x, y, f'{p:.2f}', fontsize=6,
+                ha='center', va='center', color='black', zorder=3)
 
-    if len(throats_invaded_ic)>0:
-            op.visualization.plot_connections(pn.network, throats_invaded_ic, alpha=0.5, linewidth=linewidth[throats_invaded_ic], c=inv_color ,ax=ax)
-    if len(pores_invaded_ic)>0:
-        op.visualization.plot_coordinates(pn.network, pores_invaded_ic, alpha=0.5, markersize=markersize[pores_invaded_ic], c=inv_color,ax=ax)
-    if len(throats_not_invaded_ic)>0:
-            op.visualization.plot_connections(pn.network, throats_not_invaded_ic, alpha=0.8, linewidth=linewidth[throats_not_invaded_ic], c=not_inv_color ,ax=ax)
-    if len(pores_not_invaded_ic)>0:
-        op.visualization.plot_coordinates(pn.network, pores_not_invaded_ic, alpha=0.8, markersize=markersize[pores_not_invaded_ic], c=not_inv_color,ax=ax)
-    
-    ax.set_title(f'Initial Condition',fontsize=16)
-    fig.savefig(os.path.join(frame_path,f'frame{k}.png'))
-    k +=1
-    
-    invasion_sequence = np.unique(alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
-    
-    for sequence in invasion_sequence:
-        clear_ax(ax)
-        
-        if len(throats_invaded_ic)>0:
-            op.visualization.plot_connections(pn.network, throats_invaded_ic, alpha=0.5, linewidth=linewidth[throats_invaded_ic], c=inv_color ,ax=ax)
-        if len(pores_invaded_ic)>0:
-            op.visualization.plot_coordinates(pn.network, pores_invaded_ic, alpha=0.5, markersize=markersize[pores_invaded_ic], c=inv_color,ax=ax)
-        invasion_pressure = max(alg['throat.invasion_pressure'][alg['throat.invasion_sequence'] == sequence])/1000
-        inv_throat_pattern = alg['throat.invasion_sequence'] <= sequence
-        inv_pore_pattern = alg['pore.invasion_sequence'] <= sequence
-        
-        # new_throats = np.setdiff1d(pn.network.Ts[inv_throat_pattern], throats_invaded_ic).astype(int)
-        # new_pores = np.setdiff1d(pn.network.Ps[inv_pore_pattern], pores_invaded_ic).astype(int)
-        
-        new_throats = pn.network.Ts[inv_throat_pattern]
-        new_pores =pn.network.Ps[inv_pore_pattern]
-        
-        
-        throats_not_invaded = np.setdiff1d(throats_not_invaded_ic,new_throats)
-        pores_not_invaded = np.setdiff1d(pores_not_invaded_ic,new_pores)
-        
-        if len(new_throats)>0:
-            op.visualization.plot_connections(pn.network, new_throats, alpha=0.8, linewidth=linewidth[new_throats], c=inv_color ,ax=ax)
-        if len(throats_not_invaded)>0:
-            op.visualization.plot_connections(pn.network, throats_not_invaded, alpha=0.8, linewidth=linewidth[throats_not_invaded], c=not_inv_color ,ax=ax)
-        
-        if len(new_pores)>0:
-            op.visualization.plot_coordinates(pn.network, new_pores, alpha=0.8, markersize=markersize[new_pores], c=inv_color,ax=ax)
-        if len(pores_not_invaded)>0:
-            op.visualization.plot_coordinates(pn.network, pores_not_invaded, alpha=0.8, markersize=markersize[pores_not_invaded], c=not_inv_color,ax=ax)
-        
-        ax.set_title(f'Pressure = {invasion_pressure:.2f} kPa',fontsize=16)
-        fig.savefig(os.path.join(frame_path,f'frame{k}.png'))
-        k +=1
-    return
+    # --- 2. condição inicial -----------------------------------------
+    if throats_ic.size:
+        op.visualization.plot_connections(
+            pn.network, throats_ic, alpha=0.5,
+            linewidth=linewidth[throats_ic], c=inv_color, ax=ax)
+    if pores_ic.size:
+        op.visualization.plot_coordinates(
+            pn.network, pores_ic, alpha=0.5,
+            markersize=markersize[pores_ic], c=inv_color, ax=ax)
 
-for alg in algorithm.algorithm:
-    algorithm_figure(alg,fig0,ax0)
-    clear_text_ax(ax0)
+    throats_not_ic = np.setdiff1d(pn.network.Ts, throats_ic)
+    pores_not_ic   = np.setdiff1d(pn.network.Ps, pores_ic)
+
+    if throats_not_ic.size:
+        op.visualization.plot_connections(
+            pn.network, throats_not_ic, alpha=0.8,
+            linewidth=linewidth[throats_not_ic], c=not_inv_color, ax=ax)
+    if pores_not_ic.size:
+        op.visualization.plot_coordinates(
+            pn.network, pores_not_ic, alpha=0.8,
+            markersize=markersize[pores_not_ic], c=not_inv_color, ax=ax)
+
+    # --- 3. elementos já invadidos até 'sequence' ---------------------
+    mask_throat = alg['throat.invasion_sequence'] <= sequence
+    mask_pore   = alg['pore.invasion_sequence']   <= sequence
+
+    new_throats = pn.network.Ts[mask_throat]
+    new_pores   = pn.network.Ps[mask_pore]
+
+    still_not_t = np.setdiff1d(throats_not_ic, new_throats)
+    still_not_p = np.setdiff1d(pores_not_ic,   new_pores)
+
+    if new_throats.size:
+        op.visualization.plot_connections(
+            pn.network, new_throats, alpha=0.8,
+            linewidth=linewidth[new_throats], c=inv_color, ax=ax)
+    if still_not_t.size:
+        op.visualization.plot_connections(
+            pn.network, still_not_t, alpha=0.8,
+            linewidth=linewidth[still_not_t], c=not_inv_color, ax=ax)
+
+    if new_pores.size:
+        op.visualization.plot_coordinates(
+            pn.network, new_pores, alpha=0.8,
+            markersize=markersize[new_pores], c=inv_color, ax=ax)
+    if still_not_p.size:
+        op.visualization.plot_coordinates(
+            pn.network, still_not_p, alpha=0.8,
+            markersize=markersize[still_not_p], c=not_inv_color, ax=ax)
+
+    # --- 4. título ----------------------------------------------------
+    p_kpa = alg['throat.invasion_pressure'][
+              alg['throat.invasion_sequence'] == sequence].max() / 1_000
+    ax.set_title(f'Pressure = {p_kpa:.2f} kPa', fontsize=10)
+    ax.axis('off')
+
+# ---------------------------------------------------------------
+# painel DIREITO  –––  clusters / trapping  (sem mudanças)
+# ---------------------------------------------------------------
+def _draw_clusters(ax, pn, alg, sequence):
+    plt.sca(ax)  
+    _clear_ax(ax)
+
+    p = alg['throat.invasion_pressure'][
+        alg['throat.invasion_sequence'] == sequence].max()
+
+    pseq     = alg['pore.invasion_pressure']
+    occupied = pseq > p
+    s, b = op._skgraph.simulations.site_percolation(
+        conns=pn.conns, occupied_sites=occupied)
+
+    clusters_out = np.unique(s[alg['pore.bc.outlet']])
+    Ts = pn.find_neighbor_throats(pores=s >= 0)
+    b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
+
+    trapped_pores   = np.isin(s, clusters_out, invert=True) & (s >= 0)
+    trapped_throats = np.isin(b, clusters_out, invert=True) & (b >= 0)
+
+    if trapped_pores.any():
+        op.visualization.plot_coordinates(
+            pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
+
+    mask_inv_p = pseq <= p
+    if mask_inv_p.any():
+        op.visualization.plot_coordinates(
+            pn, pores=mask_inv_p, c='k', ax=ax)
+
+    if trapped_throats.any():
+        op.visualization.plot_connections(
+            pn, throats=trapped_throats,
+            color_by=b[trapped_throats], ax=ax)
+
+    mask_inv_t = alg['throat.invasion_pressure'] <= p
+    if mask_inv_t.any():
+        op.visualization.plot_connections(
+            pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
+
+    ax.set_title('Clusters / Trapping', fontsize=10)
+    ax.axis('off')
+
+# ---------------------------------------------------------------
+# FUNÇÃO PRINCIPAL  –––  gera todos os frames
+# ---------------------------------------------------------------
+def make_frames(*, alg, pn, phases, frame_path):
+    """
+    Cria frame0000.png, frame0001.png, ... (invasão × clusters por pressure).
+    """
+    frame_path = Path(frame_path)
+    frame_path.mkdir(parents=True, exist_ok=True)
+
+    # ---------- dados globais que não mudam de frame ----------
+    inv_phase = alg.settings.phase
+    inv_color     = next(p['color'] for p in phases if p['name'] == inv_phase)
+    not_inv_color = next(p['color'] for p in phases if p['name'] != inv_phase)
+
+    # centróides de garganta p/ texto
+    centroids = pn.network.coords[pn.network.conns].mean(axis=1)
+    x_throat, y_throat = centroids[:, 0], centroids[:, 1]
+    entry_pressure = (alg.project[inv_phase]['throat.entry_pressure']) / 1000  # kPa
+
+    # condição inicial
+    throats_ic = pn.network.Ts[alg['throat.ic_invaded']]
+    pores_ic   = pn.network.Ps[alg['pore.ic_invaded']]
+
+    # larguras / tamanhos default se não existirem no Network
+    linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * 8
+    markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * 200
+
+    invasion_sequence = np.unique(
+        alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
+
+    # ---------- gera um arquivo PNG por sequence ----------
+    for seq in invasion_sequence:
+        fig, (ax_L, ax_R) = plt.subplots(
+            1, 2, figsize=(10, 5), subplot_kw={'aspect': 'equal'})
+
+        _draw_invasion(
+            ax_L, pn=pn, alg=alg, sequence=seq,
+            x_throat=x_throat, y_throat=y_throat,
+            entry_pressure=entry_pressure,
+            inv_color=inv_color, not_inv_color=not_inv_color,
+            linewidth=linewidth, markersize=markersize,
+            throats_ic=throats_ic, pores_ic=pores_ic)
+
+        _draw_clusters(ax_R, pn.network, alg, seq)
+
+        fig.tight_layout()
+        idx = next(_frame_id)
+        fig.savefig(frame_path / f'frame{idx:04d}.png', dpi=150)
+        plt.close(fig)
+
+
+make_frames(
+    alg        = algorithm.algorithm[0],        # objeto Drainage já executado
+    pn         = pn,                  # rede de poros
+    phases     = phases.phases,       # [{'name': 'water', 'color': '#0000ff'}, ...]
+    frame_path = frame_path
+)
+
+make_frames(
+    alg        = algorithm.algorithm[1],        # objeto Drainage já executado
+    pn         = pn,                  # rede de poros
+    phases     = phases.phases,       # [{'name': 'water', 'color': '#0000ff'}, ...]
+    frame_path = frame_path
+)
