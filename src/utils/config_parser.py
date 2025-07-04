@@ -31,12 +31,13 @@ class PhaseModel(Enum):
 
 @dataclass
 class NetworkConfig:
-    type:       NetworkType
-    size:       tuple[int, ...] | None = None
-    path:       str | None = None
-    prefix:     str | None = None
-    spacing:    float | None = None
-    seed:       int | None = None
+    type:           NetworkType
+    project_name:   str
+    size:           tuple[int, ...] | None = None
+    path:           str | None = None
+    prefix:         str | None = None
+    spacing:        float | None = None
+    seed:           int | None = None
     
     def __post_init__(self):
         if self.type is NetworkType.CUBIC:
@@ -108,12 +109,13 @@ class ConfigParser:
     def _build_network(cls, network_data: dict):
 
         return NetworkConfig(
-            type        = NetworkType(network_data.get("type")),
-            path        = network_data.get("path"),
-            prefix      = network_data.get("prefix"),
-            size        = network_data.get("size"),
-            spacing     = network_data.get("spacing"), 
-            seed        = network_data.get("seed"),
+            type            = NetworkType(network_data.get("type")),
+            project_name    = network_data.get("project_name"),
+            path            = network_data.get("path"),
+            prefix          = network_data.get("prefix"),
+            size            = network_data.get("size"),
+            spacing         = network_data.get("spacing"), 
+            seed            = network_data.get("seed"),
         )
         
     @classmethod

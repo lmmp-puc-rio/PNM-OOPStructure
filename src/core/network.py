@@ -5,6 +5,7 @@ import openpnm as op
 class Network:
     def __init__(self, config):
         self.config = config.network
+        self.project_name = getattr(self.config, 'project_name', 'project')
         np.random.seed(self.config.seed)
         self.network = self._create_network()
 

@@ -1,10 +1,11 @@
 {
     "network": {
         "type": "cubic",
+        "project_name": "OpenPNM_2D",
         "size": [
             10,
             10,
-            10
+            1
         ],
         "seed": 15,
         "spacing": 1e-4
