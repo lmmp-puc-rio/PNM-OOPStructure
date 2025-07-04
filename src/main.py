@@ -20,8 +20,8 @@ algorithm = Algorithm(network = pn, phases = phases,config = cfg)
 algorithm.run()
 
 #inputs
-lwidth = 8
-msize = 200
+lwidth = 3
+msize = 100
 azim = -60
 elev = 15
 
@@ -205,7 +205,7 @@ def _draw_clusters(ax, pn, alg, sequence):
 # ---------------------------------------------------------------
 def make_frames(*, alg, pn, phases, frame_path):
     """
-    Cria frame0000.png, frame0001.png, ... (invasão × clusters por pressure).
+    Cria frame0000.png, frame0001.png, ... (invasão x clusters por pressure).
     """
     frame_path = Path(frame_path)
     frame_path.mkdir(parents=True, exist_ok=True)
@@ -225,8 +225,8 @@ def make_frames(*, alg, pn, phases, frame_path):
     pores_ic   = pn.network.Ps[alg['pore.ic_invaded']]
 
     # larguras / tamanhos default se não existirem no Network
-    linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * 8
-    markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * 200
+    linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * lwidth
+    markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * msize
 
     invasion_sequence = np.unique(
         alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
