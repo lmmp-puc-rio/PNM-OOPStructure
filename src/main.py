@@ -8,6 +8,7 @@ import numpy as np
 import openpnm as op
 from itertools import count
 from pathlib import Path
+import moviepy.video.io.ImageSequenceClip
 
 path = os.path.dirname(__file__)
 json_file = 'data/base.json'
@@ -27,8 +28,8 @@ elev = 15
 
 
 #setting throats and pores plot diameters
-linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * lwidth
-markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * msize
+linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * lwidth + (lwidth/3)
+markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * msize + msize
 
 Np_col = len(np.unique(pn.network['pore.coords'].T[0]))
 Np_row = len(np.unique(pn.network['pore.coords'].T[1]))
@@ -203,7 +204,7 @@ def _draw_clusters(ax, pn, alg, sequence):
 # ---------------------------------------------------------------
 # FUNÇÃO PRINCIPAL  –––  gera todos os frames
 # ---------------------------------------------------------------
-def make_frames(*, alg, pn, phases, frame_path):
+def make_frames(alg, pn, phases,linewidth,markersize, frame_path):
     """
     Cria frame0000.png, frame0001.png, ... (invasão x clusters por pressure).
     """
@@ -223,10 +224,6 @@ def make_frames(*, alg, pn, phases, frame_path):
     # condição inicial
     throats_ic = pn.network.Ts[alg['throat.ic_invaded']]
     pores_ic   = pn.network.Ps[alg['pore.ic_invaded']]
-
-    # larguras / tamanhos default se não existirem no Network
-    linewidth = pn.network['throat.diameter'] / pn.network['throat.diameter'].max() * lwidth
-    markersize = pn.network['pore.diameter'] / pn.network['pore.diameter'].max() * msize
 
     invasion_sequence = np.unique(
         alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
@@ -252,16 +249,33 @@ def make_frames(*, alg, pn, phases, frame_path):
         plt.close(fig)
 
 
+def make_video(frames_path,fps, output_file):
+    files = os.listdir(frames_path)
+    files = [os.path.join(frames_path, file)  for file in files if os.path.isfile(os.path.join(frames_path, file)) and file.lower().endswith('.png')]
+    files = sorted(files)
+    files.insert(0, files[0])
+    files.append(files[-1])
+    clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(files, fps=fps)
+    clip.write_videofile(output_file)
+    
+
 make_frames(
     alg        = algorithm.algorithm[0],        # objeto Drainage já executado
     pn         = pn,                  # rede de poros
     phases     = phases.phases,       # [{'name': 'water', 'color': '#0000ff'}, ...]
+    linewidth   = linewidth,
+    markersize  = markersize,
     frame_path = frame_path
 )
 
 make_frames(
-    alg        = algorithm.algorithm[1],        # objeto Drainage já executado
-    pn         = pn,                  # rede de poros
-    phases     = phases.phases,       # [{'name': 'water', 'color': '#0000ff'}, ...]
-    frame_path = frame_path
+    alg         = algorithm.algorithm[1],        # objeto Drainage já executado
+    pn          = pn,                  # rede de poros
+    phases      = phases.phases,       # [{'name': 'water', 'color': '#0000ff'}, ...]
+    linewidth   = linewidth,
+    markersize  = markersize,
+    frame_path  = frame_path
 )
+
+
+make_video(frame_path, 5,os.path.join(frame_path, 'video.mp4'))
