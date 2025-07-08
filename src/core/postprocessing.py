@@ -94,8 +94,8 @@ class PostProcessing:
             
         mask_throat = alg['throat.invasion_sequence'] <= sequence
         mask_pore   = alg['pore.invasion_sequence']   <= sequence
-        new_throats = pn.Ts[mask_throat]
-        new_pores   = pn.Ps[mask_pore]
+        new_throats = np.setdiff1d(pn.Ts[mask_throat], throats_ic)
+        new_pores   = np.setdiff1d(pn.Ps[mask_pore], pores_ic)
         still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
         still_not_p = np.setdiff1d( pn.Ps[~mask_pore], pores_ic)
         # Plot the new throats and pores
