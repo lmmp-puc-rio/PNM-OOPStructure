@@ -19,3 +19,4 @@ post = PostProcessing(algorithm=algorithm, base_path=base_path)
 
 post.plot_network()
 post.make_invasion()
+post.make_clusters()

@@ -50,6 +50,7 @@ class PostProcessing:
         _frame_id = count()
         centroids = pn.coords[pn.conns].mean(axis=1)
         x_throat, y_throat = centroids[:, 0], centroids[:, 1]
+        fig, ax = plt.subplots(figsize=(6, 6))
         for alg in self.algorithm.algorithm:
             inv_phase = alg.settings.phase
             inv_color     = next(p['color'] for p in phases.phases if p['name'] == inv_phase)
@@ -59,7 +60,6 @@ class PostProcessing:
             pores_ic   = pn.Ps[alg['pore.ic_invaded']]
             invasion_sequence = np.unique(
                 alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
-            fig, ax = plt.subplots(figsize=(6, 6))
             
             for seq in invasion_sequence:
                 self._draw_invasion(ax, pn, alg, seq, x_throat, y_throat, 
@@ -68,7 +68,26 @@ class PostProcessing:
                 fig.tight_layout()
                 idx = next(_frame_id)
                 fig.savefig(os.path.join(invasion_path, f'invasion_{idx:04d}.png'), dpi=150)
+        plt.close(fig)
         return invasion_path
+    
+    def make_clusters(self):
+        pn = self.algorithm.network.network
+        clusters_path = os.path.join(self.frame_path, 'clusters_frames')
+        os.makedirs(clusters_path, exist_ok=True)
+        _frame_id = count()
+        fig, ax = plt.subplots(figsize=(6, 6))
+        for alg in self.algorithm.algorithm:
+            invasion_sequence = np.unique(
+                alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
+
+            for seq in invasion_sequence:
+                self._draw_clusters(ax, pn, alg, seq)
+                fig.tight_layout()
+                idx = next(_frame_id)
+                fig.savefig(os.path.join(clusters_path, f'clusters_{idx:04d}.png'), dpi=150)
+        plt.close(fig)
+        return clusters_path
     
     def _draw_invasion(self, ax, pn, alg, sequence,
                       x_throat, y_throat, entry_pressure,
@@ -106,6 +125,39 @@ class PostProcessing:
         p_kpa = alg['throat.invasion_pressure'][
                   alg['throat.invasion_sequence'] == sequence].max() / 1000
         ax.set_title(f'Pressure = {p_kpa:.2f} kPa', fontsize=10)
+        ax.axis('off')
+    
+    def _draw_clusters(self, ax, pn, alg, sequence):
+        plt.sca(ax)
+        self._clear_ax(ax)
+        p = alg['throat.invasion_pressure'][
+            alg['throat.invasion_sequence'] == sequence].max()
+        pseq     = alg['pore.invasion_pressure']
+        occupied = pseq > p
+        s, b = op._skgraph.simulations.site_percolation(
+            conns=pn.conns, occupied_sites=occupied)
+        clusters_out = np.unique(s[alg['pore.bc.outlet']])
+        Ts = pn.find_neighbor_throats(pores=s >= 0)
+        b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
+        trapped_pores   = np.isin(s, clusters_out, invert=True) & (s >= 0)
+        trapped_throats = np.isin(b, clusters_out, invert=True) & (b >= 0)
+    
+        if trapped_pores.any():
+            op.visualization.plot_coordinates(
+                pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
+        if trapped_throats.any():
+            op.visualization.plot_connections(
+                pn, throats=trapped_throats,
+                color_by=b[trapped_throats], ax=ax)
+        mask_inv_p = pseq <= p
+        if mask_inv_p.any():
+            op.visualization.plot_coordinates(
+                pn, pores=mask_inv_p, c='k', ax=ax)
+        mask_inv_t = alg['throat.invasion_pressure'] <= p
+        if mask_inv_t.any():
+            op.visualization.plot_connections(
+                pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
+        ax.set_title('Clusters / Trapping', fontsize=10)
         ax.axis('off')
         
     def _clear_ax(self, ax):
