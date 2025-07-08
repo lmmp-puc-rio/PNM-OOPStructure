@@ -43,8 +43,8 @@ class PostProcessing:
     def make_invasion(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
         phases = self.algorithm.phases
-        linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth + (lwidth/3)
-        markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize + msize
+        linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
+        markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
         invasion_path = os.path.join(self.frame_path, 'invasion_frames')
         os.makedirs(invasion_path, exist_ok=True)
         _frame_id = count()
@@ -62,7 +62,9 @@ class PostProcessing:
             fig, ax = plt.subplots(figsize=(6, 6))
             
             for seq in invasion_sequence:
-                self._draw_invasion(ax, pn, alg, seq, x_throat, y_throat, entry_pressure, inv_color, not_inv_color, linewidth, markersize, throats_ic, pores_ic)
+                self._draw_invasion(ax, pn, alg, seq, x_throat, y_throat, 
+                                    entry_pressure, inv_color, not_inv_color, 
+                                    linewidth, markersize, throats_ic, pores_ic)
                 fig.tight_layout()
                 idx = next(_frame_id)
                 fig.savefig(os.path.join(invasion_path, f'invasion_{idx:04d}.png'), dpi=150)
@@ -79,6 +81,8 @@ class PostProcessing:
         # for x, y, p in zip(x_throat, y_throat, entry_pressure):
         #     ax.text(x, y, f'{p:.2f}', fontsize=6,
         #             ha='center', va='center', color='black', zorder=3)
+        
+        #Plot inicial conditions with minor alpha
         if throats_ic.size:
             op.visualization.plot_connections(
                 pn, throats_ic, alpha=0.5,
@@ -87,34 +91,28 @@ class PostProcessing:
             op.visualization.plot_coordinates(
                 pn, pores_ic, alpha=0.5,
                 markersize=markersize[pores_ic], c=inv_color,zorder=2, ax=ax)
-        throats_not_ic = np.setdiff1d(pn.Ts, throats_ic)
-        pores_not_ic   = np.setdiff1d(pn.Ps, pores_ic)
-        if throats_not_ic.size:
-            op.visualization.plot_connections(
-                pn, throats_not_ic, alpha=0.8,
-                linewidth=linewidth[throats_not_ic], c=not_inv_color, zorder=1, ax=ax)
-        if pores_not_ic.size:
-            op.visualization.plot_coordinates(
-                pn, pores_not_ic, alpha=0.8,
-                markersize=markersize[pores_not_ic], c=not_inv_color,zorder=2, ax=ax)
+            
         mask_throat = alg['throat.invasion_sequence'] <= sequence
         mask_pore   = alg['pore.invasion_sequence']   <= sequence
         new_throats = pn.Ts[mask_throat]
         new_pores   = pn.Ps[mask_pore]
-        still_not_t = np.setdiff1d(throats_not_ic, new_throats)
-        still_not_p = np.setdiff1d(pores_not_ic,   new_pores)
+        still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
+        still_not_p = np.setdiff1d( pn.Ps[~mask_pore], pores_ic)
+        # Plot the new throats and pores
         if new_throats.size:
             op.visualization.plot_connections(
                 pn, new_throats, alpha=0.8,
                 linewidth=linewidth[new_throats], c=inv_color, zorder=1, ax=ax)
-        if still_not_t.size:
-            op.visualization.plot_connections(
-                pn, still_not_t, alpha=0.8,
-                linewidth=linewidth[still_not_t], c=not_inv_color, zorder=1, ax=ax)
         if new_pores.size:
             op.visualization.plot_coordinates(
                 pn, new_pores, alpha=0.8,
                 markersize=markersize[new_pores], c=inv_color,zorder=2, ax=ax)
+            
+        # Plot the still not invaded throats and pores
+        if still_not_t.size:
+            op.visualization.plot_connections(
+                pn, still_not_t, alpha=0.8,
+                linewidth=linewidth[still_not_t], c=not_inv_color, zorder=1, ax=ax)
         if still_not_p.size:
             op.visualization.plot_coordinates(
                 pn, still_not_p, alpha=0.8,
