@@ -8,6 +8,9 @@ class Network:
         self.project_name = getattr(self.config, 'project_name', 'project')
         np.random.seed(self.config.seed)
         self.network = self._create_network()
+        self.dim = '2D'
+        if len(np.unique(self.network['pore.coords'].T[2])) > 1:
+            self.dim = '3D'
 
     def _create_network(self):
         if self.config.type == NetworkType.CUBIC:
