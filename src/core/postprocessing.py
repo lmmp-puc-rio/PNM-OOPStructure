@@ -5,6 +5,7 @@ from pathlib import Path
 from itertools import count
 import moviepy.video.io.ImageSequenceClip
 import openpnm as op
+from PIL import Image
 
 class PostProcessing:
     def __init__(self, algorithm, base_path):
@@ -45,8 +46,8 @@ class PostProcessing:
         phases = self.algorithm.phases
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
-        invasion_path = os.path.join(self.frame_path, 'invasion_frames')
-        os.makedirs(invasion_path, exist_ok=True)
+        self.invasion_path = os.path.join(self.frame_path, 'invasion_frames')
+        os.makedirs(self.invasion_path, exist_ok=True)
         _frame_id = count()
         centroids = pn.coords[pn.conns].mean(axis=1)
         x_throat, y_throat = centroids[:, 0], centroids[:, 1]
@@ -67,14 +68,14 @@ class PostProcessing:
                                     linewidth, markersize, throats_ic, pores_ic)
                 fig.tight_layout()
                 idx = next(_frame_id)
-                fig.savefig(os.path.join(invasion_path, f'invasion_{idx:04d}.png'), dpi=150)
+                fig.savefig(os.path.join(self.invasion_path, f'invasion_{idx:04d}.png'), dpi=150)
         plt.close(fig)
-        return invasion_path
+        return
     
     def make_clusters(self):
         pn = self.algorithm.network.network
-        clusters_path = os.path.join(self.frame_path, 'clusters_frames')
-        os.makedirs(clusters_path, exist_ok=True)
+        self.clusters_path = os.path.join(self.frame_path, 'clusters_frames')
+        os.makedirs(self.clusters_path, exist_ok=True)
         _frame_id = count()
         fig, ax = plt.subplots(figsize=(6, 6))
         for alg in self.algorithm.algorithm:
@@ -85,9 +86,32 @@ class PostProcessing:
                 self._draw_clusters(ax, pn, alg, seq)
                 fig.tight_layout()
                 idx = next(_frame_id)
-                fig.savefig(os.path.join(clusters_path, f'clusters_{idx:04d}.png'), dpi=150)
+                fig.savefig(os.path.join(self.clusters_path, f'clusters_{idx:04d}.png'), dpi=150)
         plt.close(fig)
-        return clusters_path
+        return
+    
+    def make_frames_side_by_side(self):
+        if not hasattr(self, 'invasion_path'):
+            self.make_invasion()
+        if not hasattr(self, 'clusters_path'):
+            self.make_clusters()
+        invasion_path = self.invasion_path
+        clusters_path = self.clusters_path
+        
+        invasion_files = sorted([f for f in os.listdir(invasion_path) if f.endswith('.png')])
+        clusters_files = sorted([f for f in os.listdir(clusters_path) if f.endswith('.png')])
+        self.frames_side_by_side = os.path.join(self.frame_path, 'frames_side_by_side')
+        os.makedirs(self.frames_side_by_side, exist_ok=True)
+        for inv_file, cl_file in zip(invasion_files, clusters_files):
+            inv_img = Image.open(os.path.join(invasion_path, inv_file))
+            cl_img = Image.open(os.path.join(clusters_path, cl_file))
+            total_width = inv_img.width + cl_img.width
+            max_height = max(inv_img.height, cl_img.height)
+            new_img = Image.new('RGB', (total_width, max_height))
+            new_img.paste(inv_img, (0, 0))
+            new_img.paste(cl_img, (inv_img.width, 0))
+            new_img.save(os.path.join(self.frames_side_by_side, f'side_by_side_{inv_file.split("_")[-1]}'))
+        return
     
     def _draw_invasion(self, ax, pn, alg, sequence,
                       x_throat, y_throat, entry_pressure,
@@ -130,6 +154,8 @@ class PostProcessing:
     def _draw_clusters(self, ax, pn, alg, sequence):
         plt.sca(ax)
         self._clear_ax(ax)
+        #draw empty pores
+        self._plot_pores_and_throats(pn, pores=pn.Ps, color='#FFFFFF', alpha=0.0, ax=ax)
         p = alg['throat.invasion_pressure'][
             alg['throat.invasion_sequence'] == sequence].max()
         pseq     = alg['pore.invasion_pressure']
