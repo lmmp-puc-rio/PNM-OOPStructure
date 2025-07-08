@@ -70,7 +70,7 @@ class PostProcessing:
                 idx = next(_frame_id)
                 fig.savefig(os.path.join(self.invasion_path, f'invasion_{idx:04d}.png'), dpi=150)
         plt.close(fig)
-        return
+        return self.invasion_path
     
     def make_clusters(self):
         pn = self.algorithm.network.network
@@ -88,7 +88,7 @@ class PostProcessing:
                 idx = next(_frame_id)
                 fig.savefig(os.path.join(self.clusters_path, f'clusters_{idx:04d}.png'), dpi=150)
         plt.close(fig)
-        return
+        return self.clusters_path
     
     def make_frames_side_by_side(self):
         if not hasattr(self, 'invasion_path'):
@@ -111,8 +111,21 @@ class PostProcessing:
             new_img.paste(inv_img, (0, 0))
             new_img.paste(cl_img, (inv_img.width, 0))
             new_img.save(os.path.join(self.frames_side_by_side, f'side_by_side_{inv_file.split("_")[-1]}'))
-        return
+        return self.frames_side_by_side
     
+    def make_video(self, frames_path, fps=5, output_file=None):
+        files = os.listdir(frames_path)
+        files = [os.path.join(frames_path, file)  for file in files if os.path.isfile(os.path.join(frames_path, file)) and file.lower().endswith('.png')]
+        files = sorted(files)
+        if not files:
+            raise RuntimeError('No frames found to make video.')
+        files.insert(0, files[0])
+        files.append(files[-1])
+        output_file = output_file or os.path.join(self.video_path, 'video.mp4')
+        clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(files, fps=fps)
+        clip.write_videofile(output_file)
+        return output_file
+
     def _draw_invasion(self, ax, pn, alg, sequence,
                       x_throat, y_throat, entry_pressure,
                       inv_color, not_inv_color,

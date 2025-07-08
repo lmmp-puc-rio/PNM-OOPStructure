@@ -19,3 +19,5 @@ post = PostProcessing(algorithm=algorithm, base_path=base_path)
 
 post.plot_network()
 post.make_frames_side_by_side()
+post.make_video(frames_path=post.frames_side_by_side, fps=2,output_file=os.path.join(post.video_path, 'side_by_side.mp4'))
+post.make_video(frames_path=post.invasion_path, fps=2,output_file=os.path.join(post.video_path, 'invasion.mp4'))
