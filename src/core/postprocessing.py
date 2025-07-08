@@ -43,7 +43,7 @@ class PostProcessing:
     
     def make_invasion(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
-        phases = self.algorithm.phases
+        phases = self.algorithm.phases.phases
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
         self.invasion_path = os.path.join(self.frame_path, 'invasion_frames')
@@ -54,8 +54,8 @@ class PostProcessing:
         fig, ax = plt.subplots(figsize=(6, 6))
         for alg in self.algorithm.algorithm:
             inv_phase = alg.settings.phase
-            inv_color     = next(p['color'] for p in phases.phases if p['name'] == inv_phase)
-            not_inv_color = next(p['color'] for p in phases.phases if p['name'] != inv_phase)
+            inv_color     = next(p['color'] for p in phases if p['name'] == inv_phase)
+            not_inv_color = next(p['color'] for p in phases if p['name'] != inv_phase)
             entry_pressure = (alg.project[inv_phase]['throat.entry_pressure'])
             throats_ic = pn.Ts[alg['throat.ic_invaded']]
             pores_ic   = pn.Ps[alg['pore.ic_invaded']]
@@ -103,14 +103,11 @@ class PostProcessing:
         self.frames_side_by_side = os.path.join(self.frame_path, 'frames_side_by_side')
         os.makedirs(self.frames_side_by_side, exist_ok=True)
         for inv_file, cl_file in zip(invasion_files, clusters_files):
-            inv_img = Image.open(os.path.join(invasion_path, inv_file))
-            cl_img = Image.open(os.path.join(clusters_path, cl_file))
-            total_width = inv_img.width + cl_img.width
-            max_height = max(inv_img.height, cl_img.height)
-            new_img = Image.new('RGB', (total_width, max_height))
-            new_img.paste(inv_img, (0, 0))
-            new_img.paste(cl_img, (inv_img.width, 0))
-            new_img.save(os.path.join(self.frames_side_by_side, f'side_by_side_{inv_file.split("_")[-1]}'))
+            self.save_images_side_by_side(
+                os.path.join(invasion_path, inv_file),
+                os.path.join(clusters_path, cl_file),
+                os.path.join(self.frames_side_by_side, f'side_by_side_{inv_file.split("_")[-1]}')
+            )
         return self.frames_side_by_side
     
     def make_video(self, frames_path, fps=5, output_file=None):
@@ -124,6 +121,88 @@ class PostProcessing:
         output_file = output_file or os.path.join(self.video_path, 'video.mp4')
         clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(files, fps=fps)
         clip.write_videofile(output_file)
+        return output_file
+    
+    def plot_relative_permeability(self, alg, Snwp_num=20, output_file=None):
+        pn = self.algorithm.network.network
+        wp = self.algorithm.phases.get_wetting_phase()
+        wp_model = wp['model']
+        nwp = self.algorithm.phases.get_non_wetting_phase()
+        nwp_model = nwp['model']
+        self.algorithm.phases.add_conduit_conductance_model(wp_model)
+        self.algorithm.phases.add_conduit_conductance_model(nwp_model)
+        inlet = pn.Ps[alg['pore.bc.inlet']]
+        outlet = pn.Ps[alg['pore.bc.outlet']]
+        
+        def update_occupancy_and_get_saturation(network, nwp, wp, alg, seq):
+            # Determine which phase is the invading phase
+            inv_phase_name = alg.settings.phase
+            non_wetting_phase = self.algorithm.phases.get_non_wetting_phase()
+            is_invading_nwp = (inv_phase_name == non_wetting_phase['name'])
+
+            # Find invaded pores/throats at this sequence
+            invaded_pores = alg['pore.invasion_sequence'] < seq
+            invaded_throats = alg['throat.invasion_sequence'] < seq
+
+            # Set occupancy for both phases
+            if is_invading_nwp:
+                nwp['pore.occupancy'] = invaded_pores
+                nwp['throat.occupancy'] = invaded_throats
+                wp['pore.occupancy'] = ~invaded_pores
+                wp['throat.occupancy'] = ~invaded_throats
+                nw_sat_p = np.sum(network['pore.volume'][invaded_pores])
+                nw_sat_t = np.sum(network['throat.volume'][invaded_throats])
+            else:
+                wp['pore.occupancy'] = invaded_pores
+                wp['throat.occupancy'] = invaded_throats
+                nwp['pore.occupancy'] = ~invaded_pores
+                nwp['throat.occupancy'] = ~invaded_throats
+                nw_sat_p = np.sum(network['pore.volume'][~invaded_pores])
+                nw_sat_t = np.sum(network['throat.volume'][~invaded_throats])
+                
+            total_volume = network['pore.volume'].sum() + network['throat.volume'].sum()
+            saturation = (nw_sat_p + nw_sat_t) / total_volume
+            return saturation
+
+        def Rate_calc(network, phase, inlet, outlet, conductance):
+            phase.regenerate_models()
+            St_p = op.algorithms.StokesFlow(network=network, phase=phase)
+            St_p.settings._update({'conductance': conductance})
+            St_p.set_value_BC(pores=inlet, values=1)
+            St_p.set_value_BC(pores=outlet, values=0)
+            St_p.run()
+            val = np.abs(St_p.rate(pores=inlet, mode='group'))
+            return val
+
+        tmask = np.isfinite(alg['throat.invasion_sequence']) & (alg['throat.invasion_sequence'] > 0)
+        max_seq = np.max(alg['throat.invasion_sequence'][tmask])
+        min_seq = np.min(alg['throat.invasion_sequence'][tmask])
+        relperm_sequence = np.linspace(min_seq, max_seq, Snwp_num).astype(int)
+        Snwparr, relperm_nwp, relperm_wp = [], [], []
+
+        for i in relperm_sequence:
+            sat = update_occupancy_and_get_saturation(pn, nwp_model, wp_model, alg, i)
+            Snwparr.append(sat*100)  # Convert to percentage
+            Rate_abs_nwp = Rate_calc(pn, nwp_model, inlet, outlet, conductance='throat.hydraulic_conductance')
+            Rate_abs_wp = Rate_calc(pn, wp_model, inlet, outlet, conductance='throat.hydraulic_conductance')
+            Rate_enwp = Rate_calc(pn, nwp_model, inlet, outlet, conductance='throat.conduit_hydraulic_conductance')
+            Rate_ewp = Rate_calc(pn, wp_model, inlet, outlet, conductance='throat.conduit_hydraulic_conductance')
+            relperm_nwp.append(Rate_enwp / Rate_abs_nwp)
+            relperm_wp.append(Rate_ewp / Rate_abs_wp)
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.plot(Snwparr, relperm_nwp, '-o', label='Kr_nwp', color=nwp['color'])
+        ax.plot(Snwparr, relperm_wp, '-*', label='Kr_wp', color=wp['color'])
+        ax.set_xlabel('Snwp [%]')
+        ax.set_ylabel('Kr')
+        ax.set_xlim(0, 100)
+        ax.set_ylim(-0.01, 1.05)
+        ax.set_title(f'Relative Permeability', fontsize=16)
+        ax.legend()
+        fig.tight_layout()
+        output_file = output_file or os.path.join(self.graph_path, f'RP_{alg.name}.png')
+        fig.savefig(output_file)
+        plt.close(fig)
         return output_file
 
     def _draw_invasion(self, ax, pn, alg, sequence,
@@ -225,3 +304,13 @@ class PostProcessing:
                 pn, pores, alpha=alpha,
                 markersize=markersize[pores] if markersize is not None else None,
                 c=color, zorder=2, ax=ax)
+                
+    def save_images_side_by_side(self, file1, file2, outfile):
+        img1 = Image.open(file1)
+        img2 = Image.open(file2)
+        total_width = img1.width + img2.width
+        max_height = max(img1.height, img2.height)
+        new_img = Image.new('RGB', (total_width, max_height))
+        new_img.paste(img1, (0, 0))
+        new_img.paste(img2, (img1.width, 0))
+        new_img.save(outfile)
