@@ -83,40 +83,26 @@ class PostProcessing:
         #             ha='center', va='center', color='black', zorder=3)
         
         #Plot inicial conditions with minor alpha
-        if throats_ic.size:
-            op.visualization.plot_connections(
-                pn, throats_ic, alpha=0.5,
-                linewidth=linewidth[throats_ic], c=inv_color, zorder=1, ax=ax)
-        if pores_ic.size:
-            op.visualization.plot_coordinates(
-                pn, pores_ic, alpha=0.5,
-                markersize=markersize[pores_ic], c=inv_color,zorder=2, ax=ax)
-            
+        self._plot_pores_and_throats(pn, pores=pores_ic, throats=throats_ic,
+                          color=inv_color, alpha=0.5, 
+                          markersize=markersize, linewidth=linewidth, ax=ax)          
+          
         mask_throat = alg['throat.invasion_sequence'] <= sequence
         mask_pore   = alg['pore.invasion_sequence']   <= sequence
         new_throats = np.setdiff1d(pn.Ts[mask_throat], throats_ic)
         new_pores   = np.setdiff1d(pn.Ps[mask_pore], pores_ic)
         still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
         still_not_p = np.setdiff1d( pn.Ps[~mask_pore], pores_ic)
+        
         # Plot the new throats and pores
-        if new_throats.size:
-            op.visualization.plot_connections(
-                pn, new_throats, alpha=0.8,
-                linewidth=linewidth[new_throats], c=inv_color, zorder=1, ax=ax)
-        if new_pores.size:
-            op.visualization.plot_coordinates(
-                pn, new_pores, alpha=0.8,
-                markersize=markersize[new_pores], c=inv_color,zorder=2, ax=ax)
+        self._plot_pores_and_throats(pn, pores=new_pores, throats=new_throats,
+                          color=inv_color, alpha=0.8, 
+                          markersize=markersize, linewidth=linewidth, ax=ax)
             
         # Plot the still not invaded throats and pores
-        if still_not_t.size:
-            op.visualization.plot_connections(
-                pn, still_not_t, alpha=0.8,
-                linewidth=linewidth[still_not_t], c=not_inv_color, zorder=1, ax=ax)
-        if still_not_p.size:
-            op.visualization.plot_coordinates(
-                pn, still_not_p, alpha=0.8,
-                markersize=markersize[still_not_p], c=not_inv_color,zorder=2, ax=ax)
+        self._plot_pores_and_throats(pn, pores=still_not_p, throats=still_not_t,
+                          color=not_inv_color, alpha=0.8, 
+                          markersize=markersize, linewidth=linewidth, ax=ax)
         p_kpa = alg['throat.invasion_pressure'][
                   alg['throat.invasion_sequence'] == sequence].max() / 1000
         ax.set_title(f'Pressure = {p_kpa:.2f} kPa', fontsize=10)
@@ -130,3 +116,21 @@ class PostProcessing:
         leg = ax.get_legend()
         if leg:
             leg.remove()
+            
+    def _plot_pores_and_throats(self, pn, pores=None, throats=None, color='#000000',
+                          alpha=1, markersize=None, 
+                          linewidth=None, ax=None):
+        
+        if throats is not None:
+            if throats.size:
+                op.visualization.plot_connections(
+                pn, throats, alpha=alpha,
+                linewidth=linewidth[throats] if linewidth is not None else None,
+                c=color, zorder=1, ax=ax)
+            
+        if pores is not None:
+            if pores.size:
+                op.visualization.plot_coordinates(
+                pn, pores, alpha=alpha,
+                markersize=markersize[pores] if markersize is not None else None,
+                c=color, zorder=2, ax=ax)
