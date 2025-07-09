@@ -29,7 +29,16 @@ class Network:
     def _create_imported(self):
         project = op.io.network_from_statoil(path = self.config.path, prefix = self.config.prefix)
         pn = project.network
+        pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
+        pn.add_model(propname='pore.cluster_number',
+             model=op.models.network.cluster_number)
+        pn.add_model(propname='pore.cluster_size',
+                    model=op.models.network.cluster_size)
         pn['pore.diameter'] = pn['pore.radius']*2
         pn['throat.diameter'] = pn['throat.radius']*2
+        Ps = pn['pore.cluster_size']< 6004
+        op.topotools.trim(network=pn, pores=Ps)
+        
+        pn.regenerate_models()
         return pn
         
