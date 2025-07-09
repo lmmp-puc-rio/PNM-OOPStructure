@@ -203,7 +203,7 @@ class PostProcessing:
         ax.set_ylabel('Kr')
         ax.set_xlim(0, 100)
         ax.set_ylim(-0.01, 1.05)
-        ax.set_title(f'Relative Permeability', fontsize=16)
+        ax.set_title(f'RP {alg.name}', fontsize=16)
         ax.legend()
         fig.tight_layout()
         output_file = output_file or os.path.join(self.graph_path, f'RP_{alg.name}.png')
