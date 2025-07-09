@@ -44,6 +44,7 @@ class PostProcessing:
     def make_invasion(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
         phases = self.algorithm.phases.phases
+        dim =  self.algorithm.network.dim
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
         self.invasion_path = os.path.join(self.frame_path, 'invasion_frames')
@@ -51,7 +52,9 @@ class PostProcessing:
         _frame_id = count()
         centroids = pn.coords[pn.conns].mean(axis=1)
         x_throat, y_throat = centroids[:, 0], centroids[:, 1]
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection = '3d') if dim == '3D' else fig.add_subplot(111)
+        fig.set_size_inches(10,10)
         for alg in self.algorithm.algorithm:
             inv_phase = alg.settings.phase
             inv_color     = next(p['color'] for p in phases if p['name'] == inv_phase)
@@ -74,10 +77,13 @@ class PostProcessing:
     
     def make_clusters(self):
         pn = self.algorithm.network.network
+        dim =  self.algorithm.network.dim
         self.clusters_path = os.path.join(self.frame_path, 'clusters_frames')
         os.makedirs(self.clusters_path, exist_ok=True)
         _frame_id = count()
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection = '3d') if dim == '3D' else fig.add_subplot(111)
+        fig.set_size_inches(10,10)
         for alg in self.algorithm.algorithm:
             invasion_sequence = np.unique(
                 alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
