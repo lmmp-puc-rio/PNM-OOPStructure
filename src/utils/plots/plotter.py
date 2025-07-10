@@ -33,7 +33,9 @@ class Plotter2D:
         
         if layout.get("sci_notation", False):
             ax.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
-            
+        
+        self.fig.tight_layout()
+        
     def save(self, path):
         self.fig.savefig(path)
         plt.close(self.fig)
