@@ -1,14 +1,9 @@
 {
     "network": {
-        "type": "cubic",
-        "project_name": "OpenPNM_2D",
-        "size": [
-            10,
-            10,
-            1
-        ],
-        "seed": 15,
-        "spacing": 1e-4
+        "type": "import",
+        "project_name": "BereaOld",
+        "path": "/home/stelio/OpenPNM/data/rock_samples/Berea",
+        "prefix": "Berea"
     },
     "phases": [
         {
@@ -37,15 +32,15 @@
         {
             "name": "drainageSimulation",
             "phase": "co2",
-            "inlet": "left",
-            "outlet": "right",
+            "inlet": "inlets",
+            "outlet": "outlets",
             "pressures": 200
         },
         {
             "name": "imbibitionSimulation",
             "phase": "water",
-            "inlet": "left",
-            "outlet": "right",
+            "inlet": "inlets",
+            "outlet": "outlets",
             "pressures": 200
         }
     ]
