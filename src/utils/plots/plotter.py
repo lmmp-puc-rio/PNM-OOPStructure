@@ -28,6 +28,8 @@ class Plotter2D:
         ax.grid(layout.get("grid", True))
         ax.set_xlim(layout.get("xmin"), layout.get("xmax"))
         ax.set_ylim(layout.get("ymin"), layout.get("ymax"))
+        if layout.get("legend", False):
+            ax.legend()
         
         if layout.get("sci_notation", False):
             ax.ticklabel_format(style='sci', axis='both', scilimits=(0, 0))
