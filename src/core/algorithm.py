@@ -28,10 +28,12 @@ class Algorithm:
         for alg in self.algorithm:
             #Setting initial conditions
             if np.any(pore_trapped):
-                alg['pore.invaded'] = pore_trapped
+                alg['pore.invaded'] = pore_trapped.copy()
             if np.any(throat_trapped):
-                alg['throat.invaded'] = throat_trapped
-            
+                alg['throat.invaded'] = throat_trapped.copy()
+                
+            alg['pore.ic_invaded'] =  pore_trapped.copy()
+            alg['throat.ic_invaded'] =  throat_trapped.copy()
             #calculate pressures
             phase = alg.settings.phase
             phase_model = self.phases.get_model(phase)
