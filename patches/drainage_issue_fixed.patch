@@ -1,16 +1,21 @@
 diff --git a/openpnm/algorithms/_drainage.py b/openpnm/algorithms/_drainage.py
-index bae2e8c3b..6e5b545fa 100644
+index bae2e8c3b..b5dfece84 100644
 --- a/openpnm/algorithms/_drainage.py
 +++ b/openpnm/algorithms/_drainage.py
-@@ -238,6 +238,7 @@ class Drainage(Algorithm):
-             # numbers are NOT connected to the outlets
-             self['pore.trapped'] += np.isin(s, clusters, invert=True)*(s >= 0)
-             self['throat.trapped'] += np.isin(b, clusters, invert=True)*(b >= 0)
-+       
-         # Use the identified trapped pores and throats to update the other
-         # data on the object accordingly
-         # self['pore.trapped'][self['pore.residual']] = False
-@@ -248,6 +249,15 @@ class Drainage(Algorithm):
+@@ -228,6 +228,12 @@ class Drainage(Algorithm):
+         for p in np.unique(pseq):
+             s, b = site_percolation(conns=self.network.conns,
+                                     occupied_sites=pseq > p)
++            # Identify uninvaded throats between previously invaded pores within same cluster   
++            both_pores_invaded = (pseq[self.network.conns[:, 0]] <= p) & (pseq[self.network.conns[:, 1]] <= p)
++            same_cluster = s[self.network.conns[:, 0]] == s[self.network.conns[:, 1]]
++            uninvaded_throat = tseq > p
++            trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
++            self['throat.trapped'][trap_condition] = True
+             # Identify cluster numbers connected to the outlets
+             clusters = np.unique(s[self['pore.bc.outlet']])
+             # Find ALL throats connected to any trapped site, since these
+@@ -248,6 +254,15 @@ class Drainage(Algorithm):
          self['throat.invasion_pressure'][self['throat.trapped']] = np.inf
          self['pore.invasion_sequence'][self['pore.trapped']] = -1
          self['throat.invasion_sequence'][self['throat.trapped']] = -1
