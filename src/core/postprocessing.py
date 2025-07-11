@@ -73,9 +73,11 @@ class PostProcessing:
                 plotter.save(os.path.join(self.invasion_path, f'invasion_{idx:04d}.png'))
         return self.invasion_path
     
-    def make_clusters(self):
+    def make_clusters(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
         dim = self.algorithm.network.dim
+        linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
+        markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
         self.clusters_path = os.path.join(self.frame_path, 'clusters_frames')
         os.makedirs(self.clusters_path, exist_ok=True)
         _frame_id = count()
@@ -88,7 +90,7 @@ class PostProcessing:
                 else:
                     plotter = Plotter2D(layout='invasion_2d', title='Clusters / Trapping')
                 ax = plotter.ax
-                self._draw_clusters(ax, pn, alg, seq)
+                self._draw_clusters(ax, pn, alg, seq,linewidth, markersize)
                 idx = next(_frame_id)
                 plotter.apply_layout()
                 plotter.save(os.path.join(self.clusters_path, f'clusters_{idx:04d}.png'))
@@ -236,11 +238,12 @@ class PostProcessing:
                           color=not_inv_color, alpha=0.8, 
                           markersize=markersize, linewidth=linewidth, ax=ax)
     
-    def _draw_clusters(self, ax, pn, alg, sequence):
+    def _draw_clusters(self, ax, pn, alg, sequence,linewidth, markersize):
         plt.sca(ax)
         self._clear_ax(ax)
         #draw empty pores
-        self._plot_pores_and_throats(pn, pores=pn.Ps, color='#FFFFFF', alpha=0.0, ax=ax)
+        self._plot_pores_and_throats(pn, pores=pn.Ps,linewidth=linewidth,markersize=markersize,
+                                     color='#FFFFFF', alpha=0.0, ax=ax)
         p = alg['throat.invasion_pressure'][
             alg['throat.invasion_sequence'] == sequence].max()
         pseq = alg['pore.invasion_pressure']
@@ -261,12 +264,16 @@ class PostProcessing:
         trapped_pores   = np.isin(s, clusters_out, invert=True) & (s >= 0)
         trapped_throats += np.isin(b, clusters_out, invert=True) & (b >= 0)
 
-        self._plot_pores_and_throats(pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
-        self._plot_pores_and_throats(pn, throats=trapped_throats, color_by=b[trapped_throats], ax=ax)
+        self._plot_pores_and_throats(pn, pores=trapped_pores, linewidth=linewidth,markersize=markersize, 
+                                     color_by=s[trapped_pores], ax=ax)
+        self._plot_pores_and_throats(pn, throats=trapped_throats, linewidth=linewidth,markersize=markersize,  
+                                     color_by=b[trapped_throats], ax=ax)
         mask_inv_p = pseq <= p
         mask_inv_t = alg['throat.invasion_pressure'] <= p
-        self._plot_pores_and_throats(pn, pores=mask_inv_p, c='k', ax=ax)
-        self._plot_pores_and_throats(pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
+        self._plot_pores_and_throats(pn, pores=mask_inv_p, linewidth=linewidth,markersize=markersize, 
+                                     c='k', ax=ax)
+        self._plot_pores_and_throats(pn, throats=mask_inv_t, linewidth=linewidth,markersize=markersize, 
+                                     c='k', linestyle='--', ax=ax)
         
     def _clear_ax(self, ax):
         for art in ax.lines[:] + ax.collections[:]:
