@@ -252,24 +252,14 @@ class PostProcessing:
         b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
         trapped_pores   = np.isin(s, clusters_out, invert=True) & (s >= 0)
         trapped_throats = np.isin(b, clusters_out, invert=True) & (b >= 0)
-    
-        if trapped_pores.any():
-            op.visualization.plot_coordinates(
-                pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
-        if trapped_throats.any():
-            op.visualization.plot_connections(
-                pn, throats=trapped_throats,
-                color_by=b[trapped_throats], ax=ax)
+
+        self._plot_pores_and_throats(pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
+        self._plot_pores_and_throats(pn, throats=trapped_throats, color_by=b[trapped_throats], ax=ax)
         mask_inv_p = pseq <= p
-        if mask_inv_p.any():
-            op.visualization.plot_coordinates(
-                pn, pores=mask_inv_p, c='k', ax=ax)
         mask_inv_t = alg['throat.invasion_pressure'] <= p
-        if mask_inv_t.any():
-            op.visualization.plot_connections(
-                pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
-        ax.set_title('Clusters / Trapping', fontsize=10)
-        ax.axis('off')
+        self._plot_pores_and_throats(pn, pores=mask_inv_p, c='k', ax=ax)
+        self._plot_pores_and_throats(pn, pores=mask_inv_p, c='k', ax=ax)
+        self._plot_pores_and_throats(pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
         
     def _clear_ax(self, ax):
         for art in ax.lines[:] + ax.collections[:]:
