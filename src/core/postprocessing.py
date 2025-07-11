@@ -19,14 +19,14 @@ class PostProcessing:
         os.makedirs(self.graph_path, exist_ok=True)
         os.makedirs(self.frame_path , exist_ok=True)
         
-    def plot_network(self, lwidth=3, msize=100, azim=-60, elev=15):
+    def plot_network(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
         phases = self.algorithm.phases.phases
         dim = self.algorithm.network.dim
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
         if dim == '3D':
-            plotter = Plotter3D(layout='pore_network_3d', azim=azim, elev=elev)
+            plotter = Plotter3D(layout='pore_network_3d')
         else:
             plotter = Plotter2D(layout='pore_network_2d')
         ax = plotter.ax
@@ -209,8 +209,6 @@ class PostProcessing:
                       inv_color, not_inv_color,
                       linewidth, markersize,
                       throats_ic, pores_ic):
-        plt.sca(ax)
-        self._clear_ax(ax)
         # Plot the throat invasion pressure as text on the plot
         # for x, y, p in zip(x_throat, y_throat, entry_pressure):
         #     ax.text(x, y, f'{p:.2f}', fontsize=6,
@@ -239,11 +237,6 @@ class PostProcessing:
                           markersize=markersize, linewidth=linewidth, ax=ax)
     
     def _draw_clusters(self, ax, pn, alg, sequence,linewidth, markersize):
-        plt.sca(ax)
-        self._clear_ax(ax)
-        #draw empty pores
-        self._plot_pores_and_throats(pn, pores=pn.Ps,linewidth=linewidth,markersize=markersize,
-                                     color='#FFFFFF', alpha=0.0, ax=ax)
         p = alg['throat.invasion_pressure'][
             alg['throat.invasion_sequence'] == sequence].max()
         pseq = alg['pore.invasion_pressure']
@@ -274,15 +267,9 @@ class PostProcessing:
                                      c='k', ax=ax)
         self._plot_pores_and_throats(pn, throats=mask_inv_t, linewidth=linewidth,markersize=markersize, 
                                      c='k', linestyle='--', ax=ax)
-        
-    def _clear_ax(self, ax):
-        for art in ax.lines[:] + ax.collections[:]:
-            art.remove()
-        for txt in ax.texts[:]:
-            txt.remove()
-        leg = ax.get_legend()
-        if leg:
-            leg.remove()
+        #draw empty pores
+        self._plot_pores_and_throats(pn, pores=pn.Ps,linewidth=linewidth,markersize=markersize,
+                                     color='k', alpha=0.0, ax=ax)
             
     def _plot_pores_and_throats(self, pn, pores=None, throats=None, markersize=None, 
                                 linewidth=None, ax=None, **kwargs):
