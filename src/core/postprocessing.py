@@ -243,21 +243,28 @@ class PostProcessing:
         self._plot_pores_and_throats(pn, pores=pn.Ps, color='#FFFFFF', alpha=0.0, ax=ax)
         p = alg['throat.invasion_pressure'][
             alg['throat.invasion_sequence'] == sequence].max()
-        pseq     = alg['pore.invasion_pressure']
+        pseq = alg['pore.invasion_pressure']
+        tseq = alg['throat.invasion_pressure']
         occupied = pseq > p
         s, b = op._skgraph.simulations.site_percolation(
             conns=pn.conns, occupied_sites=occupied)
+        # Identify uninvaded throats between previously invaded pores within same cluster   
+        both_pores_invaded = (pseq[alg.network.conns[:, 0]] <= p) & (pseq[alg.network.conns[:, 1]] <= p)
+        same_cluster = s[alg.network.conns[:, 0]] == s[alg.network.conns[:, 1]]
+        uninvaded_throat = tseq > p
+        trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
+        trapped_throats = trap_condition
+        
         clusters_out = np.unique(s[alg['pore.bc.outlet']])
         Ts = pn.find_neighbor_throats(pores=s >= 0)
         b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
         trapped_pores   = np.isin(s, clusters_out, invert=True) & (s >= 0)
-        trapped_throats = np.isin(b, clusters_out, invert=True) & (b >= 0)
+        trapped_throats += np.isin(b, clusters_out, invert=True) & (b >= 0)
 
         self._plot_pores_and_throats(pn, pores=trapped_pores, color_by=s[trapped_pores], ax=ax)
         self._plot_pores_and_throats(pn, throats=trapped_throats, color_by=b[trapped_throats], ax=ax)
         mask_inv_p = pseq <= p
         mask_inv_t = alg['throat.invasion_pressure'] <= p
-        self._plot_pores_and_throats(pn, pores=mask_inv_p, c='k', ax=ax)
         self._plot_pores_and_throats(pn, pores=mask_inv_p, c='k', ax=ax)
         self._plot_pores_and_throats(pn, throats=mask_inv_t, c='k', linestyle='--', ax=ax)
         
