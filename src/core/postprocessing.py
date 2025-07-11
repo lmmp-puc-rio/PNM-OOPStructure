@@ -270,23 +270,22 @@ class PostProcessing:
         if leg:
             leg.remove()
             
-    def _plot_pores_and_throats(self, pn, pores=None, throats=None, color='#000000',
-                          alpha=1, markersize=None, 
-                          linewidth=None, ax=None):
+    def _plot_pores_and_throats(self, pn, pores=None, throats=None, markersize=None, 
+                                linewidth=None, ax=None, **kwargs):
         
         if throats is not None:
-            if throats.size:
+            if throats.any():
                 op.visualization.plot_connections(
-                pn, throats, alpha=alpha,
+                pn, throats,zorder=1, ax=ax, **kwargs,
                 linewidth=linewidth[throats] if linewidth is not None else None,
-                c=color, zorder=1, ax=ax)
+                )
             
         if pores is not None:
-            if pores.size:
+            if pores.any():
                 op.visualization.plot_coordinates(
-                pn, pores, alpha=alpha,
+                pn, pores, zorder=2, ax=ax,  **kwargs,
                 markersize=markersize[pores] if markersize is not None else None,
-                c=color, zorder=2, ax=ax)
+                )
                 
     def save_images_side_by_side(self, file1, file2, outfile):
         img1 = Image.open(file1)
