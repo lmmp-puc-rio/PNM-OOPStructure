@@ -44,7 +44,7 @@ class Plotter3D(Plotter2D):
     """3D plotter with layout support."""
     def __init__(self, layout = "pore_network_3d", **overrides):
         super().__init__(layout, **overrides)
-
+        self.fig.clf()
         self.ax = self.fig.add_subplot(projection='3d')
 
     def apply_layout(self):
