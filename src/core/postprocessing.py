@@ -2,11 +2,8 @@ from utils.plots.plotter import Plotter2D, Plotter3D
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
 from itertools import count
-import moviepy.video.io.ImageSequenceClip
 import openpnm as op
-from PIL import Image
 
 class PostProcessing:
     def __init__(self, algorithm, base_path):
@@ -87,41 +84,6 @@ class PostProcessing:
         else:
             raise ValueError(f'Unknown frame_type: {frame_type}. Supported types are: "invasion", "clusters".')
         return self.make_frames(draw_func, title_func, frame_subdir, lwidth, msize)
-    
-    #TODO change to a file with figure and video methods
-    def make_frames_side_by_side(self):
-        if not hasattr(self, 'invasion_path'):
-            self.make_invasion()
-        if not hasattr(self, 'clusters_path'):
-            self.make_clusters()
-        invasion_path = self.invasion_path
-        clusters_path = self.clusters_path
-        
-        invasion_files = sorted([f for f in os.listdir(invasion_path) if f.endswith('.png')])
-        clusters_files = sorted([f for f in os.listdir(clusters_path) if f.endswith('.png')])
-        self.frames_side_by_side = os.path.join(self.frame_path, 'frames_side_by_side')
-        os.makedirs(self.frames_side_by_side, exist_ok=True)
-        for inv_file, cl_file in zip(invasion_files, clusters_files):
-            self.save_images_side_by_side(
-                os.path.join(invasion_path, inv_file),
-                os.path.join(clusters_path, cl_file),
-                os.path.join(self.frames_side_by_side, f'side_by_side_{inv_file.split("_")[-1]}')
-            )
-        return self.frames_side_by_side
-    
-    #TODO change to a file with figure and video methods
-    def make_video(self, frames_path, fps=5, output_file=None):
-        files = os.listdir(frames_path)
-        files = [os.path.join(frames_path, file)  for file in files if os.path.isfile(os.path.join(frames_path, file)) and file.lower().endswith('.png')]
-        files = sorted(files)
-        if not files:
-            raise RuntimeError('No frames found to make video.')
-        files.insert(0, files[0])
-        files.append(files[-1])
-        output_file = output_file or os.path.join(self.video_path, 'video.mp4')
-        clip = moviepy.video.io.ImageSequenceClip.ImageSequenceClip(files, fps=fps)
-        clip.write_videofile(output_file)
-        return output_file
     
     def plot_relative_permeability(self, alg, Snwp_num=20, output_file=None):
         pn = self.algorithm.network.network
@@ -276,13 +238,3 @@ class PostProcessing:
                 pn, pores, zorder=2, ax=ax,  **kwargs,
                 markersize=markersize[pores] if markersize is not None else None,
                 )
-                
-    def save_images_side_by_side(self, file1, file2, outfile):
-        img1 = Image.open(file1)
-        img2 = Image.open(file2)
-        total_width = img1.width + img2.width
-        max_height = max(img1.height, img2.height)
-        new_img = Image.new('RGB', (total_width, max_height))
-        new_img.paste(img1, (0, 0))
-        new_img.paste(img2, (img1.width, 0))
-        new_img.save(outfile)
