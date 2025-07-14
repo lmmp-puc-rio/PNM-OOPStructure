@@ -38,64 +38,57 @@ class PostProcessing:
         plotter.save(os.path.join(self.graph_path, f'Network_{self.algorithm.network.project_name}.png'))
         return
     
-    def make_invasion(self, lwidth=3, msize=100):
+    def make_frames(self, draw_func, title_func, frame_subdir, lwidth=3, msize=100):
         pn = self.algorithm.network.network
         phases = self.algorithm.phases.phases
         dim = self.algorithm.network.dim
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
-        self.invasion_path = os.path.join(self.frame_path, 'invasion_frames')
-        os.makedirs(self.invasion_path, exist_ok=True)
+        frame_path = os.path.join(self.frame_path, frame_subdir)
+        os.makedirs(frame_path, exist_ok=True)
         _frame_id = count()
-        centroids = pn.coords[pn.conns].mean(axis=1)
-        x_throat, y_throat = centroids[:, 0], centroids[:, 1]
         for alg in self.algorithm.algorithm:
             inv_phase = alg.settings.phase
             inv_color = next(p['color'] for p in phases if p['name'] == inv_phase)
             not_inv_color = next(p['color'] for p in phases if p['name'] != inv_phase)
-            entry_pressure = (alg.project[inv_phase]['throat.entry_pressure'])
             throats_ic = pn.Ts[alg['throat.ic_invaded']]
             pores_ic = pn.Ps[alg['pore.ic_invaded']]
             invasion_sequence = np.unique(
                 alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
             for seq in invasion_sequence:
-                p_kpa = alg['throat.invasion_pressure'][
-                  alg['throat.invasion_sequence'] == seq].max() / 1000
-                if dim == '3D':
-                    plotter = Plotter3D(layout='invasion_3d', title=f'Pressure = {p_kpa:.2f} kPa')
-                else:
-                    plotter = Plotter2D(layout='invasion_2d', title=f'Pressure = {p_kpa:.2f} kPa')
+                title = title_func(alg, seq)
+                plotter_cls = Plotter3D if dim == '3D' else Plotter2D
+                plotter = plotter_cls(layout=f'invasion_{"3d" if dim=="3D" else "2d"}', title=title)
                 ax = plotter.ax
-                self._draw_invasion(ax, pn, alg, seq, x_throat, y_throat, entry_pressure, inv_color, 
-                                    not_inv_color, linewidth, markersize, throats_ic, pores_ic)
+                draw_func(
+                    ax=ax, pn=pn, alg=alg, sequence=seq, inv_color=inv_color, not_inv_color=not_inv_color,
+                    linewidth=linewidth, markersize=markersize, throats_ic=throats_ic, pores_ic=pores_ic
+                )
                 idx = next(_frame_id)
                 plotter.apply_layout()
-                plotter.save(os.path.join(self.invasion_path, f'invasion_{idx:04d}.png'))
-        return self.invasion_path
+                plotter.save(os.path.join(frame_path, f'{frame_subdir}_{idx:04d}.png'))
+        return frame_path
     
-    def make_clusters(self, lwidth=3, msize=100):
-        pn = self.algorithm.network.network
-        dim = self.algorithm.network.dim
-        linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
-        markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
-        self.clusters_path = os.path.join(self.frame_path, 'clusters_frames')
-        os.makedirs(self.clusters_path, exist_ok=True)
-        _frame_id = count()
-        for alg in self.algorithm.algorithm:
-            invasion_sequence = np.unique(
-                alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
-            for seq in invasion_sequence:
-                if dim == '3D':
-                    plotter = Plotter3D(layout='invasion_3d', title='Clusters / Trapping')
-                else:
-                    plotter = Plotter2D(layout='invasion_2d', title='Clusters / Trapping')
-                ax = plotter.ax
-                self._draw_clusters(ax, pn, alg, seq,linewidth, markersize)
-                idx = next(_frame_id)
-                plotter.apply_layout()
-                plotter.save(os.path.join(self.clusters_path, f'clusters_{idx:04d}.png'))
-        return self.clusters_path
+    def make_frames_type(self, frame_type, lwidth=3, msize=100):
+        if frame_type == 'invasion':
+            def title_func(alg, seq):
+                p_kpa = alg['throat.invasion_pressure'][alg['throat.invasion_sequence'] == seq].max() / 1000
+                return f'Pressure = {p_kpa:.2f} kPa'
+            def draw_func(**kwargs):
+                self._draw_invasion(**kwargs)
+                                
+            frame_subdir = 'invasion_frames'
+        elif frame_type == 'clusters':
+            def title_func(alg, seq):
+                return 'Clusters / Trapping'
+            def draw_func(**kwargs):
+                self._draw_clusters(kwargs['ax'], kwargs['pn'], kwargs['alg'], kwargs['sequence'], kwargs['linewidth'], kwargs['markersize'])
+            frame_subdir = 'clusters_frames'
+        else:
+            raise ValueError(f'Unknown frame_type: {frame_type}. Supported types are: "invasion", "clusters".')
+        return self.make_frames(draw_func, title_func, frame_subdir, lwidth, msize)
     
+    #TODO change to a file with figure and video methods
     def make_frames_side_by_side(self):
         if not hasattr(self, 'invasion_path'):
             self.make_invasion()
@@ -116,6 +109,7 @@ class PostProcessing:
             )
         return self.frames_side_by_side
     
+    #TODO change to a file with figure and video methods
     def make_video(self, frames_path, fps=5, output_file=None):
         files = os.listdir(frames_path)
         files = [os.path.join(frames_path, file)  for file in files if os.path.isfile(os.path.join(frames_path, file)) and file.lower().endswith('.png')]
@@ -205,14 +199,9 @@ class PostProcessing:
         return output_file
 
     def _draw_invasion(self, ax, pn, alg, sequence,
-                      x_throat, y_throat, entry_pressure,
                       inv_color, not_inv_color,
                       linewidth, markersize,
                       throats_ic, pores_ic):
-        # Plot the throat invasion pressure as text on the plot
-        # for x, y, p in zip(x_throat, y_throat, entry_pressure):
-        #     ax.text(x, y, f'{p:.2f}', fontsize=6,
-        #             ha='center', va='center', color='black', zorder=3)
         
         #Plot inicial conditions with minor alpha
         self._plot_pores_and_throats(pn, pores=pores_ic, throats=throats_ic,
