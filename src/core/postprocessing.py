@@ -52,14 +52,26 @@ class PostProcessing:
             pores_ic = pn.Ps[alg['pore.ic_invaded']]
             invasion_sequence = np.unique(
                 alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])])
+            plotter_cls = Plotter3D if dim == '3D' else Plotter2D
             for seq in invasion_sequence:
                 title = title_func(alg, seq)
-                plotter_cls = Plotter3D if dim == '3D' else Plotter2D
                 plotter = plotter_cls(layout=f'invasion_{"3d" if dim=="3D" else "2d"}', title=title)
                 ax = plotter.ax
                 draw_func(
                     ax=ax, pn=pn, alg=alg, sequence=seq, inv_color=inv_color, not_inv_color=not_inv_color,
                     linewidth=linewidth, markersize=markersize, throats_ic=throats_ic, pores_ic=pores_ic
+                )
+                idx = next(_frame_id)
+                plotter.apply_layout()
+                plotter.save(os.path.join(frame_path, f'{frame_subdir}_{idx:04d}.png'))
+            
+            for j in np.arange(0, 1, 0.1):
+                plotter = plotter_cls(layout=f'invasion_{"3d" if dim=="3D" else "2d"}', title=title)
+                ax = plotter.ax
+                draw_func(
+                    ax=ax, pn=pn, alg=alg, sequence=seq, inv_color=inv_color, not_inv_color=not_inv_color,
+                    linewidth=linewidth, markersize=markersize, throats_ic=throats_ic, pores_ic=pores_ic,
+                    alpha_inv=1-j, alpha_not_inv=j, alpha_ic=1-j
                 )
                 idx = next(_frame_id)
                 plotter.apply_layout()
@@ -162,12 +174,12 @@ class PostProcessing:
 
     def _draw_invasion(self, ax, pn, alg, sequence,
                       inv_color, not_inv_color,
-                      linewidth, markersize,
-                      throats_ic, pores_ic):
+                      linewidth, markersize, throats_ic, 
+                      pores_ic, alpha_inv=0.8,alpha_not_inv=0.8, alpha_ic=0.4):
         
         #Plot inicial conditions with minor alpha
         self._plot_pores_and_throats(pn, pores=pores_ic, throats=throats_ic,
-                          color=inv_color, alpha=0.5, 
+                          color=inv_color, alpha=alpha_ic, 
                           markersize=markersize, linewidth=linewidth, ax=ax)          
           
         mask_throat = alg['throat.invasion_sequence'] <= sequence
@@ -179,12 +191,12 @@ class PostProcessing:
         
         # Plot the new throats and pores
         self._plot_pores_and_throats(pn, pores=new_pores, throats=new_throats,
-                          color=inv_color, alpha=0.8, 
+                          color=inv_color, alpha=alpha_inv, 
                           markersize=markersize, linewidth=linewidth, ax=ax)
             
         # Plot the still not invaded throats and pores
         self._plot_pores_and_throats(pn, pores=still_not_p, throats=still_not_t,
-                          color=not_inv_color, alpha=0.8, 
+                          color=not_inv_color, alpha=alpha_not_inv, 
                           markersize=markersize, linewidth=linewidth, ax=ax)
     
     def _draw_clusters(self, ax, pn, alg, sequence,linewidth, markersize):
