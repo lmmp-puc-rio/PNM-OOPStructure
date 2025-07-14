@@ -76,6 +76,24 @@ class PostProcessing:
                 idx = next(_frame_id)
                 plotter.apply_layout()
                 plotter.save(os.path.join(frame_path, f'{frame_subdir}_{idx:04d}.png'))
+
+            # 3D rotation frames
+            if dim == '3D':
+                n_frames = 36
+                azim_step = 10
+                azim_0 = -60
+                for l in range(n_frames):
+                    plotter = Plotter3D(layout=f'invasion_3d', title=title)
+                    ax = plotter.ax
+                    draw_func(
+                        ax=ax, pn=pn, alg=alg, sequence=seq, inv_color=inv_color, not_inv_color=not_inv_color,
+                        linewidth=linewidth, markersize=markersize, throats_ic=throats_ic, pores_ic=pores_ic,
+                        alpha_inv=0, alpha_not_inv=1, alpha_ic=0
+                    )
+                    plotter.layout.update(azim=azim_0 + l * azim_step)
+                    idx = next(_frame_id)
+                    plotter.apply_layout()
+                    plotter.save(os.path.join(frame_path, f'{frame_subdir}_{idx:04d}.png'))
         return frame_path
     
     def make_frames_type(self, frame_type, lwidth=3, msize=100):
