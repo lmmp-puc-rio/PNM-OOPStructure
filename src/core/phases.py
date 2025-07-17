@@ -1,6 +1,6 @@
 from utils.config_parser import PhaseModel
 import openpnm as op
-
+import numpy as np
 class Phases:
     r"""
     Phases(network, config)
@@ -56,11 +56,16 @@ class Phases:
             raise ValueError(f"PhaseModel: {raw.model}")
         phase_model.add_model_collection(op.models.collections.physics.basic)
         for prop in raw.properties.keys():
-            phase_model.add_model(
-                propname=prop,
-                model=op.models.misc.constant,
-                value=raw.properties[prop]
-            )
+            if prop.split('.')[0] in ['throat', 'pore']:
+                phase_model.add_model(
+                    propname=prop,
+                    model=op.models.misc.constant,
+                    value=raw.properties[prop]
+                )
+            elif prop.split('.')[0] in ['param']:
+                phase_model[prop] = raw.properties[prop]
+            else:
+                raise ValueError(f"Unknown property prefix in {prop}")
         phase_model.regenerate_models()
         return phase_model
 
