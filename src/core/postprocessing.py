@@ -266,3 +266,14 @@ class PostProcessing:
                 pn, pores, zorder=2, ax=ax,  **kwargs,
                 markersize=markersize[pores] if markersize is not None else None,
                 )
+                
+    def plot_absolute_permeability(self, alg, output_file=None):
+        results = alg['results']
+        algorithm = alg['algorithm']
+        phase = alg['phase']
+        plotter = Plotter2D(layout='absolute_permeability', title=f'Absolute Permeability {algorithm.name}')
+        ax = plotter.ax
+        ax.plot(results['pressure'], results['flow_rate'], color=phase['color'])
+        output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
+        plotter.save(output_file)
+        return output_file
