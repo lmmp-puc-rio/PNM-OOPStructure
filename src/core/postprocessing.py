@@ -18,7 +18,6 @@ class PostProcessing:
         
     def plot_network(self, lwidth=3, msize=100):
         pn = self.algorithm.network.network
-        phases = self.algorithm.phases.phases
         dim = self.algorithm.network.dim
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
         markersize = pn['pore.diameter'] / pn['pore.diameter'].max() * msize
@@ -27,10 +26,8 @@ class PostProcessing:
         else:
             plotter = Plotter2D(layout='pore_network_2d')
         ax = plotter.ax
-        first_phase = self.algorithm.algorithm[0].settings.phase
-        phase_ic_color = next(p["color"] for p in phases if p["name"] != first_phase)
-        op.visualization.plot_coordinates(pn, markersize=markersize, c=phase_ic_color, zorder=2, alpha=0.8, ax=ax)
-        op.visualization.plot_connections(pn, linewidth=linewidth, c=phase_ic_color, zorder=1, alpha=0.8, ax=ax)
+        op.visualization.plot_coordinates(pn, markersize=markersize, c='b', zorder=2, alpha=0.8, ax=ax)
+        op.visualization.plot_connections(pn, linewidth=linewidth, c='b', zorder=1, alpha=0.8, ax=ax)
         plotter.apply_layout()
         plotter.save(os.path.join(self.graph_path, f'Network_{self.algorithm.network.project_name}.png'))
         return
@@ -44,7 +41,8 @@ class PostProcessing:
         frame_path = os.path.join(self.frame_path, frame_subdir)
         os.makedirs(frame_path, exist_ok=True)
         _frame_id = count()
-        for alg in self.algorithm.algorithm:
+        for algorithm in self.algorithm.algorithm:
+            alg = algorithm['algorithm']
             inv_phase = alg.settings.phase
             inv_color = next(p['color'] for p in phases if p['name'] == inv_phase)
             not_inv_color = next(p['color'] for p in phases if p['name'] != inv_phase)
