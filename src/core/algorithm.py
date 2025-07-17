@@ -37,7 +37,7 @@ class Algorithm:
             conductance='throat.non_newtonian_conductance'
             self.phases.add_non_newtonian_conductance_model(phase)
             phase.regenerate_models()
-            alg = op.algorithms.StokesFlow(network=pn, phase=phase)
+            alg = op.algorithms.StokesFlow(network=pn, phase=phase,name=name)
             alg.settings._update({'conductance': conductance})
         return alg
     
