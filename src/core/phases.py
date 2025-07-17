@@ -28,7 +28,8 @@ class Phases:
                 dict(
                     name=dict_phase.name,
                     model=self._create_phase_model(dict_phase),
-                    color=dict_phase.color
+                    color=dict_phase.color,
+                    config=dict_phase
                 )
             )
 
