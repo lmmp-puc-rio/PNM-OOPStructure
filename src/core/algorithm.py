@@ -8,17 +8,36 @@ class Algorithm:
         self.phases = phases
         self.algorithm = []
         for dict_algorithm in self.config:
-            self.algorithm.append(self._create_algorithm(dict_algorithm))
+            phase_dict = next(phase for phase in self.phases.phases if phase["name"] == dict_algorithm.phase)
+            self.algorithm.append(
+                dict(
+                    name=dict_algorithm.name,
+                    algorithm=self._create_algorithm(dict_algorithm),
+                    phase=phase_dict,
+                    config=dict_algorithm
+                )
+            )
             
     def _create_algorithm(self, raw: dict):
-        alg = op.algorithms.Drainage(network = self.network.network, 
-                                     phase = self.phases.get_model(raw.phase),
-                                     name = raw.name)
-        inlet = self.network.network.pores(raw.inlet)
-        alg.set_inlet_BC(pores = inlet, mode='overwrite')
-        if raw.outlet is not None:
-            outlet = self.network.network.pores(raw.outlet)
-            alg.set_outlet_BC(pores = outlet, mode='overwrite')
+        name = raw.name
+        phase = self.phases.get_model(raw.phase)
+        pn = self.network.network
+        inlet = pn.pores(raw.inlet)
+        if raw.type == AlgorithmType.DRAINAGE:
+            alg = op.algorithms.Drainage(network = pn, 
+                                        phase = phase,
+                                        name = name)
+            alg.set_inlet_BC(pores = inlet, mode='overwrite')
+            if raw.outlet is not None:
+                outlet = pn.pores(raw.outlet)
+                alg.set_outlet_BC(pores = outlet, mode='overwrite')
+                
+        elif raw.type == AlgorithmType.STOKES:
+            conductance='throat.non_newtonian_conductance'
+            self.phases.add_non_newtonian_conductance_model(phase)
+            phase.regenerate_models()
+            alg = op.algorithms.StokesFlow(network=pn, phase=phase)
+            alg.settings._update({'conductance': conductance})
         return alg
     
     def run(self):    
