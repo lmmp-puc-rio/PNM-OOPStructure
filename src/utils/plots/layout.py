@@ -59,6 +59,17 @@ RELATIVE_PERMEABILITY_LAYOUT = {
         "legend": True,
     }
 
+ABSOLUTE_PERMEABILITY_LAYOUT = {
+        "figsize": (6, 6),
+        "title": "Absolute Permeability",
+        "title_fontsize": 16,
+        "xlabel": "Pressure [Pa]",
+        "ylabel": "Flow Rate [m^3/s]",
+        "grid": True,
+        "sci_notation": True,
+        "legend": False,
+    }
+
 def get_plot_layout(plot_name: str):
     """Retrieve a predefined layout configuration by name.
     
@@ -77,6 +88,7 @@ def get_plot_layout(plot_name: str):
         'invasion_2d': INVASION_2D_LAYOUT,
         'invasion_3d': INVASION_3D_LAYOUT,
         'relative_permeability': RELATIVE_PERMEABILITY_LAYOUT,
+        'absolute_permeability': ABSOLUTE_PERMEABILITY_LAYOUT,
     }
     
     try:
