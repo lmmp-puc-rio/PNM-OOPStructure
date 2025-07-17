@@ -1,3 +1,4 @@
+from utils.config_parser import AlgorithmType
 import openpnm as op
 import numpy as np
 
@@ -40,33 +41,60 @@ class Algorithm:
             alg.settings._update({'conductance': conductance})
         return alg
     
-    def run(self):    
+    def run(self):
         pore_trapped = np.full(self.network.network.Np,False)
         throat_trapped = np.full(self.network.network.Nt,False)
         
         for alg in self.algorithm:
-            #Setting initial conditions
-            if np.any(pore_trapped):
-                alg['pore.invaded'] = pore_trapped.copy()
-            if np.any(throat_trapped):
-                alg['throat.invaded'] = throat_trapped.copy()
-                
-            alg['pore.ic_invaded'] =  pore_trapped.copy()
-            alg['throat.ic_invaded'] =  throat_trapped.copy()
-            #calculate pressures
-            phase = alg.settings.phase
-            phase_model = self.phases.get_model(phase)
-            p_max = phase_model['throat.entry_pressure'].max()
-            p_min = phase_model['throat.entry_pressure'].min()
-            samples = next(p.pressures for p in self.config if p.name == alg.name)
-            x = np.linspace(0,1,samples)
-            pressures = p_min * (p_max/p_min) ** x
-            
-            alg.run(pressures = pressures)
-            
-            pore_trapped = alg['pore.trapped'].copy()
-            throat_trapped = alg['throat.trapped'].copy()
+            if alg['config'].type == AlgorithmType.DRAINAGE:
+                self._run_drainage(alg,pore_trapped, throat_trapped)
+                pore_trapped = alg['algorithm']['pore.trapped'].copy()
+                throat_trapped = alg['algorithm']['throat.trapped'].copy()
+            elif alg['config'].type == AlgorithmType.STOKES:
+                self._run_stokes(alg)
         return
     
     def get_model(self, name):
         return next(p for p in self.algorithm if p.name == name)
+           
+    def _run_drainage(self, alg, pore_trapped, throat_trapped):
+        algorithm = alg['algorithm']
+            
+        algorithm['pore.ic_invaded'] =  pore_trapped.copy()
+        algorithm['throat.ic_invaded'] =  throat_trapped.copy()
+        #Setting initial conditions
+        if np.any(pore_trapped):
+            algorithm['pore.invaded'] = pore_trapped.copy()
+        if np.any(throat_trapped):
+            algorithm['throat.invaded'] = throat_trapped.copy()
+            
+        #calculate pressures
+        phase_model = alg['phase']['model']
+        p_max = phase_model['throat.entry_pressure'].max()
+        p_min = phase_model['throat.entry_pressure'].min()
+        samples = alg['config'].pressures
+        x = np.linspace(0,1,samples)
+        pressures = p_min * (p_max/p_min) ** x
+        
+        algorithm.run(pressures = pressures)
+        return
+    
+    def _run_stokes(self,alg):
+        algorithm = alg['algorithm']
+        pn = self.network.network
+        P_min = alg['config'].initial_pressure
+        P_max = alg['config'].final_pressure
+        steps = alg['config'].pressures
+        inlet = alg['config'].inlet
+        outlet = alg['config'].outlet
+        p_sequence = np.linspace(P_min, P_max, steps)
+        inlet = pn.pores(inlet)
+        outlet = pn.pores(outlet)
+        Q= []
+        for p in p_sequence:
+            algorithm.set_value_BC(pores=inlet, values=p,mode='overwrite')
+            algorithm.set_value_BC(pores=outlet, values=0,mode='overwrite')
+            algorithm.run()
+            Q.append(algorithm.rate(pores=inlet, mode='group')[0])
+        alg['results'] = {'pressure': p_sequence, 'flow_rate': Q}
+        return
