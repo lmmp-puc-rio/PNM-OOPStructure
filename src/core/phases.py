@@ -127,3 +127,115 @@ class Phases:
             mode='medium',
             regen_mode='deferred'
         )
+    
+    def add_non_newtonian_conductance_model(self, phase_model):
+        r"""
+        Adds a non-Newtonian conductance model to the given phase model.
+
+        Parameters
+        ----------
+        phase_model : openpnm.phase.Phase
+            The phase model to which the non-Newtonian conductance model is added.
+        """
+        def _non_newtonian_conductance(prop, pressure, mu_0, power_law_index,
+                                      mu_inf, gamma_dot_inf, gamma_dot_0, diameter):
+            r"""
+            Calculates throat conductance for non-Newtonian fluids using a piecewise model.
+            
+            Parameters
+            ----------
+            prop : str
+                Property name for pressure.
+            pressure : ndarray
+                Array of pore pressures.
+            mu_0 : float
+                Zero-shear viscosity.
+            power_law_index : float
+                Power law index (n).
+            mu_inf : float
+                Infinite-shear viscosity.
+            gamma_dot_inf : float
+                Infinite-shear rate.
+            gamma_dot_0 : float
+                Zero-shear rate.
+            diameter : ndarray
+                Throat diameters.
+
+            Returns
+            -------
+            g : ndarray
+                Calculated throat conductance values.
+                
+            Reference
+            ---------
+            https://doi.org/10.1016/j.compgeo.2025.107142
+            """
+            pressure = prop
+            mu_0 = phase_model[mu_0]
+            n = phase_model[power_law_index]
+            mu_inf = phase_model[mu_inf]
+            gamma_dot_inf = phase_model[gamma_dot_inf]
+            gamma_dot_0 = phase_model[gamma_dot_0]
+            diameter = phase_model[diameter]
+
+            r_eff = diameter / 2
+            pi = np.pi
+
+            # Get throat connections and pressure differences
+            P12 = self.network.network['throat.conns']
+            P_diff = abs(pressure[P12[:, 0]] - pressure[P12[:, 1]])
+
+            # Reference pressures for region boundaries
+            P_ref_0 = 2 * mu_0 * gamma_dot_0 / r_eff
+            P_ref_inf = 2 * mu_inf * gamma_dot_inf / r_eff
+
+            Q = np.zeros_like(P_diff)
+
+            # Masks for each region
+            mask_A = P_diff <= P_ref_0
+            mask_B = (P_diff > P_ref_0) & (P_diff <= P_ref_inf)
+            mask_C = P_diff > P_ref_inf
+
+            # Region A: Newtonian (low shear)
+            if np.any(mask_A):
+                A = pow(r_eff[mask_A], 4) * P_diff[mask_A] * pi / (8 * mu_0)
+                Q[mask_A] = A
+            # Region B: Power-law transition
+            if np.any(mask_B):
+                B1_num = 2 * (1 - n) * pi * pow(mu_0, 3) * pow(gamma_dot_0, 4)
+                B1_den = (3 * n + 1) * pow(P_diff[mask_B], 3)
+                B2_num = n * pi * pow(r_eff[mask_B], 3) * pow(r_eff[mask_B] * P_diff[mask_B] * pow(gamma_dot_0, n - 1), 1 / n)
+                B2_den = (3 * n + 1) * pow(2 * mu_0, 1 / n)
+                B = (B1_num / B1_den) + (B2_num / B2_den)
+                Q[mask_B] = B
+            # Region C: Infinite-shear (high shear)
+            if np.any(mask_C):
+                C1_num = 2 * pi * (1 - n) * pow(gamma_dot_0, 4) * (pow(mu_0, 3) - pow(mu_inf, (3 * n + 1) / (n - 1)) * pow(mu_0, (-4) / (n - 1)))
+                C1_den = (3 * n + 1) * pow(P_diff[mask_C], 3)
+                C2_num = pi * pow(r_eff[mask_C], 3) * P_diff[mask_C]
+                C2_den = 3 * mu_inf
+                C = (C1_num / C1_den) + (C2_num / C2_den)
+                Q[mask_C] = C
+
+            g = Q / P_diff
+
+            # Replace non-finite values with a large number
+            nanMask = ~np.isfinite(g)
+            if np.any(nanMask):
+                g[nanMask] = 1e8
+            return g
+
+        phase_model.add_model(
+            propname='throat.non_newtonian_conductance',
+            model=op.models.misc.generic_function,
+            func=_non_newtonian_conductance,
+            prop="pore.pressure",
+            pressure="pore.pressure",
+            mu_0="param.mu_0",
+            power_law_index="param.power_law_index",
+            mu_inf="param.mu_inf",
+            gamma_dot_inf="param.gamma_dot_inf",
+            gamma_dot_0="param.gamma_dot_0",
+            diameter='throat.diameter',
+            regen_mode='deferred'
+        )
