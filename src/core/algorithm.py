@@ -85,16 +85,42 @@ class Algorithm:
         P_min = alg['config'].initial_pressure
         P_max = alg['config'].final_pressure
         steps = alg['config'].pressures
-        inlet = alg['config'].inlet
-        outlet = alg['config'].outlet
+        inlet = pn.pores(alg['config'].inlet)
+        outlet = pn.pores(alg['config'].outlet)
+        L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
+        mean_R = np.mean(pn['throat.diameter']/2)
         p_sequence = np.linspace(P_min, P_max, steps)
-        inlet = pn.pores(inlet)
-        outlet = pn.pores(outlet)
+        gamma_dot= []
         Q= []
+        mu_app = []
         for p in p_sequence:
             algorithm.set_value_BC(pores=inlet, values=p,mode='overwrite')
             algorithm.set_value_BC(pores=outlet, values=0,mode='overwrite')
             algorithm.run()
-            Q.append(algorithm.rate(pores=inlet, mode='group')[0])
-        alg['results'] = {'pressure': p_sequence, 'flow_rate': Q}
+            flow_rate = algorithm.rate(pores=inlet, mode='group')[0]
+            Q.append(flow_rate)     
+            mu_app.append(p*np.pi*pow(mean_R,4)/(8*L*flow_rate))
+            gamma_dot.append(4*flow_rate/(np.pi*pow(mean_R,3)))
+        alg['results'] = {'pressure': p_sequence, 'flow_rate': Q, 'mu_app': mu_app, 'gamma_dot': gamma_dot}
+        return
+    
+    def _calculate_permeability(self, alg):
+        pn = self.network.network
+        phase = op.phase.Phase(network=pn)
+        phase['pore.viscosity']=1.0
+        phase.add_model_collection(op.models.collections.physics.basic)
+        phase.regenerate_models()
+        inlet = pn.pores(alg['config'].inlet)
+        outlet = pn.pores(alg['config'].outlet)
+        
+        flow = op.algorithms.StokesFlow(network=pn, phase=phase)
+        flow.set_value_BC(pores=inlet, values=1)
+        flow.set_value_BC(pores=outlet, values=0)
+        flow.run()
+        Q = flow.rate(pores=inlet, mode='group')[0]
+        A = op.topotools.get_domain_area(pn, inlets=inlet, outlets=outlet)
+        L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
+        # K = Q * L * mu / (A * Delta_P) # mu and Delta_P were assumed to be 1.
+        K = Q * L / A
+        alg['results']['permeability'] = K
         return
