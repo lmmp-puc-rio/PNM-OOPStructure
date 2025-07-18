@@ -273,7 +273,8 @@ class PostProcessing:
         phase = alg['phase']
         plotter = Plotter2D(layout='absolute_permeability', title=f'Absolute Permeability {algorithm.name}')
         ax = plotter.ax
-        ax.plot(results['pressure'], results['flow_rate'], color=phase['color'])
+        ax.plot(results['gamma_dot'], results['mu_app'], color=phase['color'])
+        plotter.apply_layout()
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
         return output_file
