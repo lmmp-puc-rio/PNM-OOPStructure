@@ -62,10 +62,10 @@ ABSOLUTE_PERMEABILITY_LAYOUT = {
     "figsize": (6, 6),
     "title": "Absolute Permeability",
     "title_fontsize": 16,
-    "xlabel": r"$\dot{\gamma}$ [Pa]",
-    "ylabel": r"$\mu_{\mathrm{app}}$ [Pa$\cdot$s]",
+    "xlabel": r"$\left\| \nabla P \right\| \, / \, \left( 2\mu_{0}\dot{\gamma_0}/R \right)$",
+    "ylabel": r"$\mu_{\mathrm{app}} \, / \, \mu_{0}$",
     "grid": True,
-    "sci_notation": True,
+    "sci_notation": False,
     "legend": False,
     }
 
