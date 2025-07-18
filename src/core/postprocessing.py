@@ -268,12 +268,17 @@ class PostProcessing:
                 )
                 
     def plot_absolute_permeability(self, alg, output_file=None):
+        pn = self.algorithm.network.network
         results = alg['results']
         algorithm = alg['algorithm']
-        phase = alg['phase']
+        phase_dict = alg['phase']
+        phase_prop = phase_dict['config'].properties
+        mu_0 = phase_prop['param.mu_0']
+        gamma_dot_0 = phase_prop['param.gamma_dot_0']
+        mean_R = np.mean(pn['throat.diameter']/2)
         plotter = Plotter2D(layout='absolute_permeability', title=f'Absolute Permeability {algorithm.name}')
         ax = plotter.ax
-        ax.plot(results['gamma_dot'], results['mu_app'], color=phase['color'])
+        ax.plot(results['dP/dx']/(2*mu_0*gamma_dot_0/mean_R), results['mu_app']/mu_0, color=phase_dict['color'])
         plotter.apply_layout()
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
