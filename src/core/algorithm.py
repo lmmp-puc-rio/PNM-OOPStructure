@@ -10,12 +10,17 @@ class Algorithm:
         self.algorithm = []
         for dict_algorithm in self.config:
             phase_dict = next(phase for phase in self.phases.phases if phase["name"] == dict_algorithm.phase)
+            create_algorithm = self._create_algorithm(dict_algorithm)
+            L = op.topotools.get_domain_length(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
+            A = op.topotools.get_domain_area(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
             self.algorithm.append(
                 dict(
                     name=dict_algorithm.name,
-                    algorithm=self._create_algorithm(dict_algorithm),
+                    algorithm=create_algorithm,
                     phase=phase_dict,
-                    config=dict_algorithm
+                    config=dict_algorithm,
+                    domain_length=L,
+                    domain_area=A,
                 )
             )
             
@@ -24,21 +29,20 @@ class Algorithm:
         phase = self.phases.get_model(raw.phase)
         pn = self.network.network
         inlet = pn.pores(raw.inlet)
+        outlet = pn.pores(raw.outlet) if raw.outlet is not None else None
+        pn['pore.inlet'] = np.isin(pn.Ps,inlet)
+        pn['pore.outlet'] = np.isin(pn.Ps,outlet)
+
         if raw.type == AlgorithmType.DRAINAGE:
             alg = op.algorithms.Drainage(network = pn, 
                                         phase = phase,
                                         name = name)
             alg.set_inlet_BC(pores = inlet, mode='overwrite')
-            if raw.outlet is not None:
-                outlet = pn.pores(raw.outlet)
+            if outlet is not None:
                 alg.set_outlet_BC(pores = outlet, mode='overwrite')
                 
         elif raw.type == AlgorithmType.STOKES:
-            conductance='throat.non_newtonian_conductance'
-            self.phases.add_non_newtonian_conductance_model(phase)
-            phase.regenerate_models()
             alg = op.algorithms.StokesFlow(network=pn, phase=phase,name=name)
-            alg.settings._update({'conductance': conductance})
         return alg
     
     def run(self):
@@ -82,12 +86,19 @@ class Algorithm:
     def _run_stokes(self,alg):
         algorithm = alg['algorithm']
         pn = self.network.network
+        phase_dict = alg['phase']
+        L = alg['domain_length']
+        A = alg['domain_area']
+        K = self._calculate_permeability(alg)
+        conductance='throat.non_newtonian_conductance'
+        self.phases.add_non_newtonian_conductance_model(phase_dict['model'])
+        phase_dict['model'].regenerate_models()
+        algorithm.settings._update({'conductance': conductance})
         P_min = alg['config'].initial_pressure
         P_max = alg['config'].final_pressure
         steps = alg['config'].pressures
         inlet = pn.pores(alg['config'].inlet)
         outlet = pn.pores(alg['config'].outlet)
-        L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
         mean_R = np.mean(pn['throat.diameter']/2)
         p_sequence = np.linspace(P_min, P_max, steps)
         gamma_dot= []
@@ -97,11 +108,12 @@ class Algorithm:
             algorithm.set_value_BC(pores=inlet, values=p,mode='overwrite')
             algorithm.set_value_BC(pores=outlet, values=0,mode='overwrite')
             algorithm.run()
+            phase_dict['model'].update(algorithm.soln)
             flow_rate = algorithm.rate(pores=inlet, mode='group')[0]
-            Q.append(flow_rate)     
-            mu_app.append(p*np.pi*pow(mean_R,4)/(8*L*flow_rate))
-            gamma_dot.append(4*flow_rate/(np.pi*pow(mean_R,3)))
-        alg['results'] = {'pressure': p_sequence, 'flow_rate': Q, 'mu_app': mu_app, 'gamma_dot': gamma_dot}
+            Q.append(flow_rate)
+            # K = Q * L * mu / (A * Delta_P)
+            mu_app.append(K * A * p /(flow_rate * L) )
+        alg['results'] = {'pressure': p_sequence,'dP/dx': p_sequence/L, 'flow_rate': Q, 'mu_app': np.array(mu_app)}
         return
     
     def _calculate_permeability(self, alg):
@@ -122,5 +134,4 @@ class Algorithm:
         L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
         # K = Q * L * mu / (A * Delta_P) # mu and Delta_P were assumed to be 1.
         K = Q * L / A
-        alg['results']['permeability'] = K
-        return
+        return K
