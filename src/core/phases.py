@@ -143,8 +143,8 @@ class Phases:
         phase_model : openpnm.phase.Phase
             The phase model to which the non-Newtonian conductance model is added.
         """
-        def _non_newtonian_conductance(prop, pressure, mu_0, power_law_index,
-                                      mu_inf, gamma_dot_inf, gamma_dot_0, diameter):
+        def _non_newtonian_conductance(prop, mu_0, power_law_index,
+                                      mu_inf, gamma_dot_inf, gamma_dot_0, diameter, length):
             r"""
             Calculates throat conductance for non-Newtonian fluids using a piecewise model.
             
@@ -183,13 +183,13 @@ class Phases:
             gamma_dot_inf = phase_model[gamma_dot_inf]
             gamma_dot_0 = phase_model[gamma_dot_0]
             diameter = phase_model[diameter]
-
+            length = phase_model[length]
             r_eff = diameter / 2
             pi = np.pi
 
             # Get throat connections and pressure differences
             P12 = self.network.network['throat.conns']
-            P_diff = abs(pressure[P12[:, 0]] - pressure[P12[:, 1]])
+            P_diff = abs(pressure[P12[:, 0]] - pressure[P12[:, 1]])/length
 
             # Reference pressures for region boundaries
             P_ref_0 = 2 * mu_0 * gamma_dot_0 / r_eff
@@ -239,12 +239,12 @@ class Phases:
             model=op.models.misc.generic_function,
             func=_non_newtonian_conductance,
             prop="pore.pressure",
-            pressure="pore.pressure",
             mu_0="param.mu_0",
             power_law_index="param.power_law_index",
             mu_inf="param.mu_inf",
             gamma_dot_inf="param.gamma_dot_inf",
             gamma_dot_0="param.gamma_dot_0",
             diameter='throat.diameter',
+            length='throat.length',
             regen_mode='deferred'
         )
