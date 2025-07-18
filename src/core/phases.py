@@ -204,24 +204,27 @@ class Phases:
 
             # Region A: Newtonian (low shear)
             if np.any(mask_A):
-                A = pow(r_eff[mask_A], 4) * P_diff[mask_A] * pi / (8 * mu_0)
-                Q[mask_A] = A
+                A = pow(r_eff, 4) * P_diff * pi / (8 * mu_0)
+                Q[mask_A] = A[mask_A]
             # Region B: Power-law transition
             if np.any(mask_B):
                 B1_num = 2 * (1 - n) * pi * pow(mu_0, 3) * pow(gamma_dot_0, 4)
-                B1_den = (3 * n + 1) * pow(P_diff[mask_B], 3)
-                B2_num = n * pi * pow(r_eff[mask_B], 3) * pow(r_eff[mask_B] * P_diff[mask_B] * pow(gamma_dot_0, n - 1), 1 / n)
+                B1_den = (3 * n + 1) * pow(P_diff, 3)
+                B2_num = n * pi * pow(r_eff, 3) * pow(r_eff * P_diff * pow(gamma_dot_0, n - 1), 1 / n)
                 B2_den = (3 * n + 1) * pow(2 * mu_0, 1 / n)
                 B = (B1_num / B1_den) + (B2_num / B2_den)
-                Q[mask_B] = B
+                Q[mask_B] = B[mask_B]
             # Region C: Infinite-shear (high shear)
             if np.any(mask_C):
-                C1_num = 2 * pi * (1 - n) * pow(gamma_dot_0, 4) * (pow(mu_0, 3) - pow(mu_inf, (3 * n + 1) / (n - 1)) * pow(mu_0, (-4) / (n - 1)))
-                C1_den = (3 * n + 1) * pow(P_diff[mask_C], 3)
-                C2_num = pi * pow(r_eff[mask_C], 3) * P_diff[mask_C]
+                try:
+                    C1_num = 2 * pi * (1 - n) * pow(gamma_dot_0, 4) * (pow(mu_0, 3) - pow(mu_inf, (3 * n + 1) / (n - 1)) * pow(mu_0, (-4) / (n - 1)))
+                except Exception:
+                    C1_num = 0.0
+                C1_den = (3 * n + 1) * pow(P_diff, 3)
+                C2_num = pi * pow(r_eff, 3) * P_diff
                 C2_den = 3 * mu_inf
                 C = (C1_num / C1_den) + (C2_num / C2_den)
-                Q[mask_C] = C
+                Q[mask_C] = C[mask_C]
 
             g = Q / P_diff
 
