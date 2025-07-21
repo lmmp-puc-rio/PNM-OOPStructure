@@ -179,7 +179,6 @@ class Phases:
             return g
         
         self.add_non_newtonian_volumetric_flow_rate_model(phase_model)
-        self.add_effective_viscosity_model(phase_model)
         phase_model.add_model(
             propname='throat.non_newtonian_conductance',
             model=op.models.misc.generic_function,
