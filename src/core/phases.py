@@ -143,16 +143,69 @@ class Phases:
         phase_model : openpnm.phase.Phase
             The phase model to which the non-Newtonian conductance model is added.
         """
-        def _non_newtonian_conductance(prop, mu_0, power_law_index,
-                                      mu_inf, gamma_dot_inf, gamma_dot_0, diameter, length):
+        def _non_newtonian_conductance(prop, pressure):
             r"""
             Calculates throat conductance for non-Newtonian fluids using a piecewise model.
             
             Parameters
             ----------
-            prop : str
-                Property name for pressure.
+            prop : ndarray
+                Non-Newtonian volumetric flow rate.
             pressure : ndarray
+                Array of pore pressures.
+
+            Returns
+            -------
+            g : ndarray
+                Calculated throat conductance values.
+                
+            Reference
+            ---------
+            https://doi.org/10.1016/j.compgeo.2025.107142
+            """
+            Q = prop
+            pressure = phase_model[pressure]
+
+            # Get throat connections and pressure differences
+            P12 = self.network.network['throat.conns']
+            P_diff = abs(pressure[P12[:, 0]] - pressure[P12[:, 1]])
+
+            g = Q / P_diff
+
+            # Replace non-finite values with a large number
+            nanMask = ~np.isfinite(g)
+            if np.any(nanMask):
+                g[nanMask] = 1e16
+            return g
+        
+        self.add_non_newtonian_volumetric_flow_rate_model(phase_model)
+        self.add_effective_viscosity_model(phase_model)
+        phase_model.add_model(
+            propname='throat.non_newtonian_conductance',
+            model=op.models.misc.generic_function,
+            func=_non_newtonian_conductance,
+            prop="throat.non_newtonian_volumetric_flow_rate",
+            pressure='pore.pressure',
+            regen_mode='deferred'
+        )
+        
+    def add_non_newtonian_volumetric_flow_rate_model(self, phase_model):
+        r"""
+        Adds a non-Newtonian volumetric flow rate model to the given phase model.
+
+        Parameters
+        ----------
+        phase_model : openpnm.phase.Phase
+            The phase model to which the non-Newtonian volumetric flow rate model is added.
+        """
+        def _non_newtonian_volumetric_flow_rate(prop, mu_0, power_law_index,
+                                      mu_inf, gamma_dot_inf, gamma_dot_0, diameter, length):
+            r"""
+            Calculates throat volumetric flow rate for non-Newtonian fluids using a piecewise model.
+
+            Parameters
+            ----------
+            prop : ndarray
                 Array of pore pressures.
             mu_0 : float
                 Zero-shear viscosity.
@@ -169,9 +222,9 @@ class Phases:
 
             Returns
             -------
-            g : ndarray
-                Calculated throat conductance values.
-                
+            Q : ndarray
+                Calculated throat volumetric flow rate values.
+
             Reference
             ---------
             https://doi.org/10.1016/j.compgeo.2025.107142
@@ -226,18 +279,16 @@ class Phases:
                 C = (C1_num / C1_den) + (C2_num / C2_den)
                 Q[mask_C] = C[mask_C]
 
-            g = Q / P_diff
-
             # Replace non-finite values with a large number
-            nanMask = ~np.isfinite(g)
-            if np.any(nanMask):
-                g[nanMask] = 1e8
-            return g
+            # nanMask = ~np.isfinite(Q)
+            # if np.any(nanMask):
+            #     Q[nanMask] = 1e-8
+            return Q
 
         phase_model.add_model(
-            propname='throat.non_newtonian_conductance',
+            propname='throat.non_newtonian_volumetric_flow_rate',
             model=op.models.misc.generic_function,
-            func=_non_newtonian_conductance,
+            func=_non_newtonian_volumetric_flow_rate,
             prop="pore.pressure",
             mu_0="param.mu_0",
             power_law_index="param.power_law_index",
