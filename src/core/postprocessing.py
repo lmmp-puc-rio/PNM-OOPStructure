@@ -278,7 +278,7 @@ class PostProcessing:
         mean_R = np.mean(pn['throat.diameter']/2)
         plotter = Plotter2D(layout='absolute_permeability', title=f'Absolute Permeability {algorithm.name}')
         ax = plotter.ax
-        ax.plot(results['dP/dx']/(2*mu_0*gamma_dot_0/mean_R), results['mu_app']/mu_0, color=phase_dict['color'])
+        ax.plot(results['gamma_dot'], results['mu_app'], color=phase_dict['color'])
         plotter.apply_layout()
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
