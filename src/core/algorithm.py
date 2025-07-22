@@ -11,18 +11,18 @@ class Algorithm:
         for dict_algorithm in self.config:
             phase_dict = next(phase for phase in self.phases.phases if phase["name"] == dict_algorithm.phase)
             create_algorithm = self._create_algorithm(dict_algorithm)
-            L = op.topotools.get_domain_length(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
-            A = op.topotools.get_domain_area(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
-            self.algorithm.append(
-                dict(
-                    name=dict_algorithm.name,
-                    algorithm=create_algorithm,
-                    phase=phase_dict,
-                    config=dict_algorithm,
-                    domain_length=L,
-                    domain_area=A,
-                )
+            alg_dict = dict(
+                name=dict_algorithm.name,
+                algorithm=create_algorithm,
+                phase=phase_dict,
+                config=dict_algorithm,
             )
+            if self.network.dim == '3D':
+                L = op.topotools.get_domain_length(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
+                A = op.topotools.get_domain_area(self.network.network, inlets=self.network.network['pore.inlet'], outlets=self.network.network['pore.outlet'])
+                alg_dict['domain_length'] = L
+                alg_dict['domain_area'] = A
+            self.algorithm.append(alg_dict)
             
     def _create_algorithm(self, raw: dict):
         name = raw.name
