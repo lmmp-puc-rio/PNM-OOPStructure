@@ -91,6 +91,7 @@ class Algorithm:
         L = alg['domain_length']
         A = alg['domain_area']
         K = self._calculate_permeability(alg)
+        D = np.mean(pn['throat.diameter'])
         conductance='throat.non_newtonian_conductance'
         self.phases.add_non_newtonian_conductance_model(phase_model)
         phase_model.regenerate_models()
@@ -101,17 +102,19 @@ class Algorithm:
         inlet = pn.pores(alg['config'].inlet)
         outlet = pn.pores(alg['config'].outlet)
         p_sequence = np.linspace(P_min, P_max, steps)
-        Q= []
-        mu_app = []
+        Q= np.array([])
+        mu_app = np.array([])
         for p in p_sequence:
             algorithm.set_value_BC(pores=inlet, values=p,mode='overwrite')
             algorithm.set_value_BC(pores=outlet, values=0,mode='overwrite')
             algorithm.run()
             phase_model.update(algorithm.soln)
             flow_rate = algorithm.rate(pores=inlet, mode='group')[0]
-            Q.append(flow_rate)
-            mu_app.append(K * A * p /(flow_rate * L) )
-        alg['results'] = {'pressure': p_sequence,'dP/dx': p_sequence/L, 'flow_rate': Q, 'mu_app': np.array(mu_app)}
+            Q = np.append(Q, flow_rate)
+            mu_app = np.append(mu_app, K * A * p /(flow_rate * L))
+        u = Q/A
+        gamma_dot = u/D
+        alg['results'] = {'pressure': p_sequence,'dP/dx': p_sequence/L, 'flow_rate': Q, 'mu_app': mu_app, 'gamma_dot': gamma_dot}
         return
     
     def _calculate_permeability(self, alg):
