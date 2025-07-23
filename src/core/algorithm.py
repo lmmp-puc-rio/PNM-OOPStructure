@@ -135,4 +135,14 @@ class Algorithm:
         A = alg['domain_area']
         # K = Q * L * mu / (A * Delta_P) # mu and Delta_P were assumed to be 1.
         K = Q * L / A
+        print(f'The value of K is: {K/0.98e-12*1000:.2f} mD')
         return K
+    
+    def _calculate_porosity(self,alg):
+        pn = self.network.network
+        Vol_void = np.sum(pn['pore.volume'])+np.sum(pn['throat.volume'])
+        L = alg['domain_length']
+        A = alg['domain_area']
+        Vol_bulk = A * L
+        Poro = Vol_void / Vol_bulk
+        return Poro

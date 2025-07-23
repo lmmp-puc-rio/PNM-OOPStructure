@@ -16,7 +16,7 @@ class PostProcessing:
         os.makedirs(self.graph_path, exist_ok=True)
         os.makedirs(self.frame_path , exist_ok=True)
         
-    def plot_network(self, lwidth=3, msize=100):
+    def plot_network(self, lwidth=2, msize=100):
         pn = self.algorithm.network.network
         dim = self.algorithm.network.dim
         linewidth = pn['throat.diameter'] / pn['throat.diameter'].max() * lwidth
@@ -26,8 +26,8 @@ class PostProcessing:
         else:
             plotter = Plotter2D(layout='pore_network_2d')
         ax = plotter.ax
-        op.visualization.plot_coordinates(pn, markersize=markersize, c='b', zorder=2, alpha=0.8, ax=ax)
-        op.visualization.plot_connections(pn, linewidth=linewidth, c='b', zorder=1, alpha=0.8, ax=ax)
+        op.visualization.plot_coordinates(pn, markersize=markersize, c='b', zorder=2, alpha=0.4, ax=ax)
+        op.visualization.plot_connections(pn, linewidth=linewidth, c='b', zorder=1, alpha=0.4, ax=ax)
         plotter.apply_layout()
         plotter.save(os.path.join(self.graph_path, f'Network_{self.algorithm.network.project_name}.png'))
         return
@@ -276,10 +276,19 @@ class PostProcessing:
         mu_0 = phase_prop['param.mu_0']
         gamma_dot_0 = phase_prop['param.gamma_dot_0']
         mean_R = np.mean(pn['throat.diameter']/2)
-        plotter = Plotter2D(layout='absolute_permeability', title=f'Absolute Permeability {algorithm.name}')
+        plotter = Plotter2D(layout='absolute_permeability', title=f'')
         ax = plotter.ax
         ax.plot(results['gamma_dot'], results['mu_app'], color=phase_dict['color'])
         plotter.apply_layout()
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
+
+        plotter2 = Plotter2D(layout='absolute_permeability', title=f'', sci_notation=True,
+                             xlabel= r"$\mathrm{Pressure} \, (Pa)$",
+                             ylabel= r"$\mathrm{Q} \, (m^3/s)$")
+        ax2 = plotter2.ax
+        ax2.plot(results['pressure'], results['flow_rate'], color=phase_dict['color'])
+        plotter2.apply_layout()
+        output_file = os.path.join(self.graph_path, f'QxP_{algorithm.name}.png')
+        plotter2.save(output_file)
         return output_file

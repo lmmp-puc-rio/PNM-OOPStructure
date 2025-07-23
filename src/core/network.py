@@ -81,3 +81,35 @@ class Network:
         pn.regenerate_models()
         return pn
         
+        
+    def _calculate_permeability(self):
+        pn = self.network
+        phase = op.phase.Phase(network=pn)
+        phase['pore.viscosity']=1.0
+        phase.add_model_collection(op.models.collections.physics.basic)
+        phase.regenerate_models()
+        inlet = pn.pores('left')
+        outlet = pn.pores('right')
+        
+        flow = op.algorithms.StokesFlow(network=pn, phase=phase)
+        flow.set_value_BC(pores=inlet, values=1)
+        flow.set_value_BC(pores=outlet, values=0)
+        flow.run()
+        Q = flow.rate(pores=inlet, mode='group')[0]
+        L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
+        A = op.topotools.get_domain_area(pn, inlets=inlet, outlets=outlet)
+        # K = Q * L * mu / (A * Delta_P) # mu and Delta_P were assumed to be 1.
+        K = Q * L / A
+        print(f'The value of K is: {K/0.98e-12*1000:.2f} mD')
+        return K/0.98e-12*1000
+    
+    def _calculate_porosity(self):
+        pn = self.network
+        inlet = pn.pores('left')
+        outlet = pn.pores('right')
+        Vol_void = np.sum(pn['pore.volume'])+np.sum(pn['throat.volume'])
+        A = op.topotools.get_domain_area(pn, inlets=inlet, outlets=outlet)
+        L = op.topotools.get_domain_length(pn, inlets=inlet, outlets=outlet)
+        Vol_bulk = A * L
+        Poro = Vol_void / Vol_bulk
+        return Poro

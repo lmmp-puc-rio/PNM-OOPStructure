@@ -241,47 +241,28 @@ class Phases:
 
             # Get throat connections and pressure differences
             P12 = self.network.network['throat.conns']
+            
+            P_throat = (pressure[P12[:, 0]] + pressure[P12[:, 1]])/2
+            P_critico = 5.0e+7
+            # Reference pressures for region boundaries
             P_diff = abs(pressure[P12[:, 0]] - pressure[P12[:, 1]])/length
 
-            # Reference pressures for region boundaries
-            P_ref_0 = 2 * mu_0 * gamma_dot_0 / r_eff
-            P_ref_inf = 2 * mu_inf * gamma_dot_inf / r_eff
-
-            Q = np.zeros_like(P_diff)
-
+            Q = np.zeros_like(P_throat)
+        
             # Masks for each region
-            mask_A = P_diff <= P_ref_0
-            mask_B = (P_diff > P_ref_0) & (P_diff <= P_ref_inf)
-            mask_C = P_diff > P_ref_inf
+            mask_liq = P_throat <= P_critico
+            mask_gas = P_throat > P_critico
 
+            mu_gas = 0.00009
+            mu_liq = 0.00011
             # Region A: Newtonian (low shear)
-            if np.any(mask_A):
-                A = pow(r_eff, 4) * P_diff * pi / (8 * mu_0)
-                Q[mask_A] = A[mask_A]
-            # Region B: Power-law transition
-            if np.any(mask_B):
-                B1_num = 2 * (1 - n) * pi * pow(mu_0, 3) * pow(gamma_dot_0, 4)
-                B1_den = (3 * n + 1) * pow(P_diff, 3)
-                B2_num = n * pi * pow(r_eff, 3) * pow(r_eff * P_diff * pow(gamma_dot_0, n - 1), 1 / n)
-                B2_den = (3 * n + 1) * pow(2 * mu_0, 1 / n)
-                B = (B1_num / B1_den) + (B2_num / B2_den)
-                Q[mask_B] = B[mask_B]
-            # Region C: Infinite-shear (high shear)
-            if np.any(mask_C):
-                try:
-                    C1_num = 2 * pi * (1 - n) * pow(gamma_dot_0, 4) * (pow(mu_0, 3) - pow(mu_inf, (3 * n + 1) / (n - 1)) * pow(mu_0, (-4) / (n - 1)))
-                except Exception:
-                    C1_num = 0.0
-                C1_den = (3 * n + 1) * pow(P_diff, 3)
-                C2_num = pi * pow(r_eff, 3) * P_diff
-                C2_den = 3 * mu_inf
-                C = (C1_num / C1_den) + (C2_num / C2_den)
-                Q[mask_C] = C[mask_C]
+            if np.any(mask_liq):
+                A = pow(r_eff, 4) * P_diff * pi / (8 * mu_liq)
+                Q[mask_liq] = A[mask_liq]
 
-            # Replace non-finite values with a large number
-            # nanMask = ~np.isfinite(Q)
-            # if np.any(nanMask):
-            #     Q[nanMask] = 1e-8
+            if np.any(mask_gas):
+                B = pow(r_eff, 4) * P_diff * pi / (8 * mu_gas)
+                Q[mask_gas] = B[mask_gas]
             return Q
 
         phase_model.add_model(
