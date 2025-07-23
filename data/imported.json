@@ -30,6 +30,7 @@
     ],
     "algorithm": [
         {
+            "type": "drainage",
             "name": "drainageSimulation",
             "phase": "co2",
             "inlet": "inlets",
@@ -37,6 +38,7 @@
             "pressures": 200
         },
         {
+            "type": "imbibition",
             "name": "imbibitionSimulation",
             "phase": "water",
             "inlet": "inlets",
