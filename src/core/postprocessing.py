@@ -276,19 +276,42 @@ class PostProcessing:
         mu_0 = phase_prop['param.mu_0']
         gamma_dot_0 = phase_prop['param.gamma_dot_0']
         mean_R = np.mean(pn['throat.diameter']/2)
-        plotter = Plotter2D(layout='absolute_permeability', title=f'')
+        plotter = Plotter2D(layout='absolute_permeability', title=f'',xlabel= r"$\mathrm{Pressure} \, (MPa)$")
         ax = plotter.ax
-        ax.plot(results['gamma_dot'], results['mu_app'], color=phase_dict['color'])
+        ax.plot(results['pressure']/1e6, results['mu_app'], color=phase_dict['color'])
         plotter.apply_layout()
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
 
         plotter2 = Plotter2D(layout='absolute_permeability', title=f'', sci_notation=True,
-                             xlabel= r"$\mathrm{Pressure} \, (Pa)$",
+                             xlabel= r"$\mathrm{Pressure} \, (MPa)$",
                              ylabel= r"$\mathrm{Q} \, (m^3/s)$")
         ax2 = plotter2.ax
-        ax2.plot(results['pressure'], results['flow_rate'], color=phase_dict['color'])
+        ax2.plot(results['pressure']/1e6, results['flow_rate'], color=phase_dict['color'])
         plotter2.apply_layout()
         output_file = os.path.join(self.graph_path, f'QxP_{algorithm.name}.png')
         plotter2.save(output_file)
         return output_file
+    
+    def plot_diameter_distribution(self):
+        pn = self.algorithm.network.network
+        fig, ax = plt.subplots(figsize=(6, 4.5))
+        ax.hist(pn['pore.diameter'], edgecolor='k',bins=20)
+        ax.set_xlabel('diameter [m]')
+        ax.set_ylabel('frequency')
+        ax.set_title('Pore Diameter Distribution')
+        output_file = os.path.join(self.graph_path, f'pore_size_distribution.png')
+        fig.savefig(output_file)
+        plt.close(fig)
+        
+        fig, ax = plt.subplots(figsize=(6, 4.5))
+        ax.hist(pn['throat.diameter'], edgecolor='k',bins=20)
+        ax.set_xlabel('diameter [m]')
+        ax.set_ylabel('frequency')
+        ax.set_title('Throat Diameter Distribution')
+        output_file = os.path.join(self.graph_path, f'throat_size_distribution.png')
+        fig.savefig(output_file)
+        plt.close(fig)
+        
+        
+
