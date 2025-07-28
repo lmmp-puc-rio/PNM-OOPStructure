@@ -287,3 +287,23 @@ class PostProcessing:
         output_file = output_file or os.path.join(self.graph_path, f'absPerm_{algorithm.name}.png')
         plotter.save(output_file)
         return output_file
+
+    def capillary_pressure_curve(self, alg, output_file=None):
+        algorithm = alg['algorithm']
+        pressures = alg['config'].pressures
+        phase_dict = alg['phase']
+        phase_model = phase_dict['model']
+        p_max = phase_model['throat.entry_pressure'].max()
+        p_min = phase_model['throat.entry_pressure'].min()
+        samples = alg['config'].pressures
+        x = np.linspace(0,1,samples)
+        pressures = p_min * (p_max/p_min) ** x
+        data_pc = algorithm.pc_curve(pressures=pressures)
+        
+        plotter = Plotter2D(layout='capillary_pressure', title=f'Capillary Pressure Curve {algorithm.name}')
+        ax = plotter.ax
+        ax.plot(data_pc.pc, data_pc.snwp*100, color=phase_dict['color'])
+        plotter.apply_layout()
+        output_file = output_file or os.path.join(self.graph_path, f'capillary_pressure_{algorithm.name}.png')
+        plotter.save(output_file)
+        return output_file

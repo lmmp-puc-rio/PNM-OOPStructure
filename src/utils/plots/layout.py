@@ -68,6 +68,18 @@ ABSOLUTE_PERMEABILITY_LAYOUT = {
     "sci_notation": False,
     "legend": False,
     }
+CAPILLARY_PRESSURE_LAYOUT = {
+    "figsize": (6, 6),
+    "title": "Capillary Pressure",
+    "title_fontsize": 16,
+    "xlabel": 'Capillary Pressure [Pa]',
+    "ylabel": 'Saturation [%]',
+    "ymin": 0,
+    "ymax": 105,
+    "grid": True,
+    "sci_notation": False,
+    "legend": False,
+    }
 
 def get_plot_layout(plot_name: str):
     """Retrieve a predefined layout configuration by name.
@@ -88,6 +100,7 @@ def get_plot_layout(plot_name: str):
         'invasion_3d': INVASION_3D_LAYOUT,
         'relative_permeability': RELATIVE_PERMEABILITY_LAYOUT,
         'absolute_permeability': ABSOLUTE_PERMEABILITY_LAYOUT,
+        'capillary_pressure': CAPILLARY_PRESSURE_LAYOUT,
     }
     
     try:
