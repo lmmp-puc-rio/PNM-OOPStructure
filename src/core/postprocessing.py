@@ -116,13 +116,14 @@ class PostProcessing:
     def plot_relative_permeability(self, alg, Snwp_num=20, output_file=None):
         pn = self.algorithm.network.network
         wp = self.algorithm.phases.get_wetting_phase()
+        algorithm = alg['algorithm']
         wp_model = wp['model']
         nwp = self.algorithm.phases.get_non_wetting_phase()
         nwp_model = nwp['model']
         self.algorithm.phases.add_conduit_conductance_model(wp_model)
         self.algorithm.phases.add_conduit_conductance_model(nwp_model)
-        inlet = pn.Ps[alg['pore.bc.inlet']]
-        outlet = pn.Ps[alg['pore.bc.outlet']]
+        inlet = pn.Ps[algorithm['pore.bc.inlet']]
+        outlet = pn.Ps[algorithm['pore.bc.outlet']]
         
         def update_occupancy_and_get_saturation(network, nwp, wp, alg, seq):
             # Determine which phase is the invading phase
@@ -163,14 +164,14 @@ class PostProcessing:
             val = np.abs(St_p.rate(pores=inlet, mode='group'))
             return val
 
-        tmask = np.isfinite(alg['throat.invasion_sequence']) & (alg['throat.invasion_sequence'] > 0)
-        max_seq = np.max(alg['throat.invasion_sequence'][tmask])
-        min_seq = np.min(alg['throat.invasion_sequence'][tmask])
+        tmask = np.isfinite(algorithm['throat.invasion_sequence']) & (algorithm['throat.invasion_sequence'] > 0)
+        max_seq = np.max(algorithm['throat.invasion_sequence'][tmask])
+        min_seq = np.min(algorithm['throat.invasion_sequence'][tmask])
         relperm_sequence = np.linspace(min_seq, max_seq, Snwp_num).astype(int)
         Snwparr, relperm_nwp, relperm_wp = [], [], []
 
         for i in relperm_sequence:
-            sat = update_occupancy_and_get_saturation(pn, nwp_model, wp_model, alg, i)
+            sat = update_occupancy_and_get_saturation(pn, nwp_model, wp_model, algorithm, i)
             Snwparr.append(sat*100)  # Convert to percentage
             Rate_abs_nwp = Rate_calc(pn, nwp_model, inlet, outlet, conductance='throat.hydraulic_conductance')
             Rate_abs_wp = Rate_calc(pn, wp_model, inlet, outlet, conductance='throat.hydraulic_conductance')
@@ -179,11 +180,11 @@ class PostProcessing:
             relperm_nwp.append(Rate_enwp / Rate_abs_nwp)
             relperm_wp.append(Rate_ewp / Rate_abs_wp)
 
-        plotter = Plotter2D(layout='relative_permeability', title=f'RP {alg.name}')
+        plotter = Plotter2D(layout='relative_permeability', title=f'RP {algorithm.name}')
         ax = plotter.ax
         ax.plot(Snwparr, relperm_nwp, '-o', label='Kr_nwp', color=nwp['color'])
         ax.plot(Snwparr, relperm_wp, '-*', label='Kr_wp', color=wp['color'])
-        output_file = output_file or os.path.join(self.graph_path, f'RP_{alg.name}.png')
+        output_file = output_file or os.path.join(self.graph_path, f'RP_{algorithm.name}.png')
         plotter.apply_layout()
         plotter.save(output_file)
         return output_file
