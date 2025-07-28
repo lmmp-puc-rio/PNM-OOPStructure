@@ -204,6 +204,9 @@ class PostProcessing:
         new_pores   = np.setdiff1d(pn.Ps[mask_pore], pores_ic)
         still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
         still_not_p = np.setdiff1d( pn.Ps[~mask_pore], pores_ic)
+        inlet = pn.Ps[alg['pore.bc.inlet']]
+        new_pores   = np.union1d(new_pores, inlet)
+        still_not_p = np.setdiff1d( still_not_p, inlet)
         
         # Plot the new throats and pores
         self._plot_pores_and_throats(pn, pores=new_pores, throats=new_throats,
