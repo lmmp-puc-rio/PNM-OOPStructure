@@ -4,8 +4,8 @@ PORE_NETWORK_2D_LAYOUT = {
     "title_fontsize": 16,
     "grid": False,
     "sci_notation": True,
-    "xlabel": "X [m]",
-    "ylabel": "Y [m]",
+    "xlabel": r"X [m]",
+    "ylabel": r"Y [m]",
 }
 
 PORE_NETWORK_3D_LAYOUT = {
@@ -16,9 +16,9 @@ PORE_NETWORK_3D_LAYOUT = {
     "sci_notation": True,
     "elev": 15,
     "azim": -60,
-    "xlabel": "X [m]",
-    "ylabel": "Y [m]",
-    "zlabel": "Z [m]",
+    "xlabel": r"X [m]",
+    "ylabel": r"Y [m]",
+    "zlabel": r"Z [m]",
 }
 
 INVASION_2D_LAYOUT = {
@@ -27,8 +27,8 @@ INVASION_2D_LAYOUT = {
     "title_fontsize": 16,
     "grid": False,
     "sci_notation": True,
-    "xlabel": "X [m]",
-    "ylabel": "Y [m]",
+    "xlabel": r"X [m]",
+    "ylabel": r"Y [m]",
 }
 
 INVASION_3D_LAYOUT = {
@@ -39,17 +39,17 @@ INVASION_3D_LAYOUT = {
     "sci_notation": True,
     "elev": 15,
     "azim": -60,
-    "xlabel": "X [m]",
-    "ylabel": "Y [m]",
-    "zlabel": "Z [m]",
+    "xlabel": r"X [m]",
+    "ylabel": r"Y [m]",
+    "zlabel": r"Z [m]",
 }
 
 RELATIVE_PERMEABILITY_LAYOUT = {
     "figsize": (6, 6),
     "title": "Relative Permeability",
     "title_fontsize": 16,
-    "xlabel": "Snwp [%]",
-    "ylabel": "Kr",
+    "xlabel": r"Snwp [%]",
+    "ylabel": r"Kr",
     "grid": True,
     "sci_notation": False,
     "xmin": 0,
@@ -62,8 +62,8 @@ ABSOLUTE_PERMEABILITY_LAYOUT = {
     "figsize": (6, 6),
     "title": "Absolute Permeability",
     "title_fontsize": 16,
-    "xlabel": r"$\dot{\gamma}$",
-    "ylabel": r"$\mu_{\mathrm{app}}$",
+    "xlabel": r"$Pressure [Pa]$",
+    "ylabel": r"$Q [m^3/s]$",
     "grid": True,
     "sci_notation": False,
     "legend": False,
@@ -72,8 +72,8 @@ CAPILLARY_PRESSURE_LAYOUT = {
     "figsize": (6, 6),
     "title": "Capillary Pressure",
     "title_fontsize": 16,
-    "xlabel": 'Capillary Pressure [Pa]',
-    "ylabel": 'Saturation [%]',
+    "xlabel": r"Capillary Pressure [Pa]",
+    "ylabel": r"Saturation [%]",
     "ymin": 0,
     "ymax": 105,
     "grid": True,
