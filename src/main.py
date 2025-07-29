@@ -1,7 +1,7 @@
 from utils.config_parser import ConfigParser
 from core.network import Network
 from core.phases import Phases
-from core.algorithm import Algorithm
+from core.algorithms import AlgorithmManager
 from core.postprocessing import PostProcessing
 import os
 from utils.figures.media_utils import make_video, save_images_side_by_side
@@ -13,16 +13,5 @@ cfg = ConfigParser.from_file(json_file)
 
 pn = Network(config = cfg)
 phases = Phases(network = pn, config = cfg)
-algorithm = Algorithm(network = pn, phases = phases,config = cfg)
-algorithm.run()
-
-post = PostProcessing(algorithm=algorithm, base_path=base_path)
-
-post.plot_network()
-invasionPath = post.make_frames_type('invasion')
-clustersPath = post.make_frames_type('clusters')
-make_video(frames_path=invasionPath, fps=2, output_file=os.path.join(post.video_path, 'invasion.mp4'))
-make_video(frames_path=clustersPath, fps=2, output_file=os.path.join(post.video_path, 'clusters.mp4'))
-rel1 = post.plot_relative_permeability(alg=algorithm.algorithm[0], Snwp_num=20)
-rel2 = post.plot_relative_permeability(alg=algorithm.algorithm[1], Snwp_num=20)
-save_images_side_by_side(rel1, rel2, os.path.join(post.graph_path, 'relative_permeability_side_by_side.png'))
+manager = AlgorithmManager(pn, phases, cfg)
+results = manager.run_all()
