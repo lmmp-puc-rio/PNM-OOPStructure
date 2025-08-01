@@ -5,7 +5,7 @@
         "file": "/home/stelio/OpenPNM/data/images/EOR-D82 - Saphire Device/Combined Stacks_2_Cutted_ChanneledInlet.tif",
         "properties":{
             "voxel_size": 1,
-            "r_max": 30
+            "r_max": 50
         }
     },
     "phases": [
