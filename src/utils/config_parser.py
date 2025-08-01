@@ -14,6 +14,7 @@ class NetworkType(Enum):
     """
     CUBIC       = "cubic"
     IMPORTED    = "imported"
+    IMAGE       = "image"
     
     @classmethod
     def _missing_(cls, value):
@@ -22,6 +23,8 @@ class NetworkType(Enum):
             return cls.CUBIC
         if value in ("imported", "import", "data", "dat"):
             return cls.IMPORTED
+        if value in ("image", "images", "img", "image2d", "image3d"):
+            return cls.IMAGE
         raise ValueError(f"NetworkType: {value}")
     
 class PhaseModel(Enum):
@@ -77,6 +80,10 @@ class NetworkConfig:
         Spacing between pore centers in each direction (required for cubic).
     seed : int, optional
         Random seed (required for cubic).
+    file : str, optional
+        Path to image file (required for image networks).
+    properties : dict, optional
+        Additional properties for the network (e.g., voxel size, accuracy).
     """
     type:           NetworkType
     project_name:   str
@@ -85,6 +92,8 @@ class NetworkConfig:
     prefix:         str | None = None
     spacing:        float | None = None
     seed:           int | None = None
+    file:           str | None = None
+    properties:     dict | None = None
     
     def __post_init__(self):
         r"""
@@ -98,6 +107,10 @@ class NetworkConfig:
             missing = [p for p in ("path", "prefix") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
+        elif self.type is NetworkType.IMAGE:
+            missing = [p for p in ("file") if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Image Network missing parameters: {', '.join(missing)}")
         if isinstance(self.size, list):
             self.size = tuple(self.size)
 
@@ -222,6 +235,8 @@ class ConfigParser:
             size            = network_data.get("size"),
             spacing         = network_data.get("spacing"), 
             seed            = network_data.get("seed"),
+            file            = network_data.get("file"),
+            properties      = network_data.get("properties")
         )
         
     @classmethod
