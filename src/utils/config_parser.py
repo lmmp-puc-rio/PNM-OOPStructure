@@ -108,7 +108,7 @@ class NetworkConfig:
             if missing:
                 raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
         elif self.type is NetworkType.IMAGE:
-            missing = [p for p in ("file") if getattr(self, p) is None]
+            missing = [p for p in ("file",) if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Image Network missing parameters: {', '.join(missing)}")
         if isinstance(self.size, list):
