@@ -202,15 +202,36 @@ class DrainagePostProcessor(BasePostProcessor):
         not_inv_color = next(p['color'] for p in phases if p['name'] != inv_phase)
         
         alg = algorithm.algorithm
-        throats_ic = pn.Ts[alg['throat.ic_invaded']]
-        pores_ic = pn.Ps[alg['pore.ic_invaded']]
-        
+        throats_ic = pn.Ts[alg['throat.ic_invaded']].copy()
+        pores_ic = np.union1d(pn.Ps[alg['pore.ic_invaded']].copy(), pn.Ps[alg['pore.bc.inlet']])
         invasion_sequence = np.unique(
             alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])]
         )
         
         plotter_cls = Plotter3D if dim == '3D' else Plotter2D
         _frame_id = count()
+        
+        title = 'Initial State '
+        plotter = plotter_cls(
+                layout=f'invasion_{"3d" if dim=="3D" else "2d"}', 
+                title=title
+            )
+        ax = plotter.ax
+        
+        self._plot_pores_and_throats(
+            pn, pores=pores_ic, throats=throats_ic,
+            color=inv_color, alpha=0.8, 
+            markersize=markersize, linewidth=linewidth, ax=ax
+        )
+        
+        self._plot_pores_and_throats(
+            pn, pores=np.setdiff1d(pn.Ps, pores_ic), throats=np.setdiff1d(pn.Ts, throats_ic),
+            color=not_inv_color, alpha=0.8, 
+            markersize=markersize, linewidth=linewidth, ax=ax
+        )
+        idx = next(_frame_id)
+        plotter.apply_layout()
+        plotter.save(os.path.join(frame_path, f'{algorithm_frame_subdir}_{idx:04d}.png'))
         
         for seq in invasion_sequence:
             title = title_func(alg, seq)
