@@ -109,3 +109,57 @@ class Network:
         pn['throat.spacing'] = pn['throat.total_length']
         pn.regenerate_models()
         return pn
+        
+    def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
+        r"""
+        Set inlet and outlet pores using specific pore numbers.
+        
+        This method allows direct specification of which pores should be
+        designated as inlets and outlets using their indices. You can set
+        only inlets, only outlets, or both.
+        
+        Parameters
+        ----------
+        inlet_pores : array_like, optional
+            List or array of pore indices to use as inlets. If None, inlets are not modified.
+        outlet_pores : array_like, optional
+            List or array of pore indices to use as outlets. If None, outlets are not modified.
+        """        
+        pn = self.network
+        
+        if inlet_pores is not None:
+            inlet_pores = np.asarray(inlet_pores)
+            pn['pore.inlets'] = False
+            pn['pore.inlets'][inlet_pores] = True
+        
+        if outlet_pores is not None:
+            outlet_pores = np.asarray(outlet_pores)
+            pn['pore.outlets'] = False
+            pn['pore.outlets'][outlet_pores] = True
+            
+    def get_inlet_outlet_info(self):
+        r"""
+        Get information about current inlet and outlet pores.
+        
+        Returns
+        -------
+        info : dict
+            Dictionary containing inlet/outlet information
+        """
+        pn = self.network
+        
+        inlet_pores = pn.pores('inlets')
+        outlet_pores = pn.pores('outlets')
+        
+        info = {
+            'num_inlets': len(inlet_pores),
+            'num_outlets': len(outlet_pores),
+            'inlet_pores': inlet_pores,
+            'outlet_pores': outlet_pores,
+            'total_pores': pn.Np,
+            'inlet_fraction': len(inlet_pores) / pn.Np,
+            'outlet_fraction': len(outlet_pores) / pn.Np
+        }
+            
+        return info
+    
