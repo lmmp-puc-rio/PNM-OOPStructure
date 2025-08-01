@@ -87,4 +87,20 @@ class PostProcessingManager:
         output_file : str
             Path to the saved network plot
         """
-        return self.base_processor.plot_network(**kwargs)        
+        return self.base_processor.plot_network(**kwargs)
+        
+    def plot_network_tutorial(self, **kwargs):
+        r"""
+        Plot the pore network in tutorial style with labels.
+        
+        Parameters
+        ----------
+        **kwargs
+            Arguments passed to the network tutorial plotting method
+            
+        Returns
+        -------
+        output_file : str
+            Path to the saved tutorial network plot
+        """
+        return self.base_processor.plot_network_tutorial(**kwargs) 

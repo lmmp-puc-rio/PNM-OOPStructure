@@ -9,7 +9,8 @@ from abc import ABC
 import os
 import openpnm as op
 from utils.plots.plotter import Plotter2D, Plotter3D
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 class BasePostProcessor(ABC):
     r"""
@@ -95,6 +96,58 @@ class BasePostProcessor(ABC):
             f'Network_{self.algorithm_manager.network.project_name}.png'
         )
         plotter.save(output_file)
+        return output_file
+        
+    def plot_network_tutorial(self, font_size=1, line_width=0.2, node_size=10, 
+                             output_file=None, dpi=600):
+        r"""
+        Plot the pore network in tutorial style with labels.
+        
+        This method creates a network visualization similar to OpenPNM's
+        tutorial plots, showing the network structure with labels.
+        
+        Parameters
+        ----------
+        font_size : float, default 1
+            Font size for labels and annotations
+        line_width : float, default 0.2
+            Width of throat connections
+        node_size : float, default 10
+            Size of pore markers
+        output_file : str, optional
+            Custom output file path. If None, uses default naming
+        dpi : int, default 600
+            Resolution for saved image
+            
+        Returns
+        -------
+        output_file : str
+            Path to the saved tutorial network plot
+        """
+        
+        pn = self.algorithm_manager.network.network
+        
+        fig, ax = plt.subplots()
+        
+        throat_labels = np.empty_like(pn.Ts, dtype=str)
+        throat_labels[:] = ''
+        
+        op.visualization.plot_tutorial(
+            pn, 
+            font_size=font_size,
+            line_width=line_width,
+            node_size=node_size,
+            throat_labels=throat_labels
+        )
+        
+        fig = plt.gcf()
+        output_file = output_file or os.path.join(
+            self.graph_path, 
+            f'Network_tutorial_{self.algorithm_manager.network.project_name}.png'
+        )
+        fig.savefig(output_file, dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+        
         return output_file
         
     def _plot_pores_and_throats(self, pn, pores=None, throats=None, markersize=None, 
