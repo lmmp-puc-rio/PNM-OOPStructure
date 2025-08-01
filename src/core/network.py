@@ -1,6 +1,8 @@
 from utils.config_parser import NetworkType
 import numpy as np
 import openpnm as op
+import skimage.io as sc
+import porespy as ps
 
 class Network:
     r"""
@@ -44,6 +46,8 @@ class Network:
             return self._create_cubic()
         elif self.config.type == NetworkType.IMPORTED:
             return self._create_imported()
+        elif self.config.type == NetworkType.IMAGE:
+            return self._create_image()
         else:
             raise ValueError(f"NetworkType: {self.config.type}")
 
@@ -81,3 +85,27 @@ class Network:
         pn.regenerate_models()
         return pn
         
+    def _create_image(self):
+        r"""
+        Creates a network from an image file.
+        """
+        im = sc.imread(self.config.file, as_gray=True)
+        
+        snow_params = {}
+        for param_name in ['voxel_size', 'r_max', 'accuracy', 'sigma','boundary_width']:
+            param_value = self.config.properties.get(param_name)
+            if param_value is not None:
+                snow_params[param_name] = param_value
+        
+        snow= ps.networks.snow2(im.T, **snow_params)
+        pn = op.io.network_from_porespy(snow.network)
+        h = op.utils.check_network_health(pn)
+        op.topotools.trim(network=pn, pores=h['disconnected_pores'])
+        pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
+        pn['pore.diameter'] = pn["pore.inscribed_diameter"]
+        pn['throat.diameter'] = pn["throat.inscribed_diameter"]
+        pn['pore.inlets'] = pn["pore.xmin"]
+        pn['pore.outlets'] = pn["pore.xmax"]
+        pn['throat.spacing'] = pn['throat.total_length']
+        pn.regenerate_models()
+        return pn
