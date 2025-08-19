@@ -91,7 +91,8 @@ class StokesAlgorithm(BaseAlgorithm):
         """
         if self.algorithm is None:
             self.create_algorithm()
-        
+        self.algorithm.settings["f_rtol"] = 1e-6
+        self.algorithm.settings["x_rtol"] = 1e-6
         #TODO implement Phase.TYPE to define phase models and properties
         self._setup_non_newtonian_conductance()
         
