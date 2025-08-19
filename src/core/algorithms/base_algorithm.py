@@ -94,7 +94,14 @@ class BaseAlgorithm(ABC):
         pn = self.network.network
         inlet_pores = pn.pores(inlet_label)
         pn['pore.inlet'] = np.isin(pn.Ps, inlet_pores)
+        conns = pn['throat.conns']
+        inlet_inlet_throats = pn['pore.inlet'][conns[:, 0]] & pn['pore.inlet'][conns[:, 1]]
         
         if outlet_label is not None:
             outlet_pores = pn.pores(outlet_label)
             pn['pore.outlet'] = np.isin(pn.Ps, outlet_pores)
+            
+            outlet_outlet_throats = pn['pore.outlet'][conns[:, 0]] & pn['pore.outlet'][conns[:, 1]]
+        op.topotools.trim(network=pn, throats=inlet_inlet_throats | outlet_outlet_throats)
+        pn.regenerate_models()
+            
