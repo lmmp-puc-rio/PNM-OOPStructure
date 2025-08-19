@@ -124,14 +124,13 @@ class StokesAlgorithm(BaseAlgorithm):
             
         mu_app = K * self.domain_area * p_sequence / (Q * self.domain_length)
         u = Q / self.domain_area
-        gamma_dot = u / D
         
         self.results = {
             'pressure': p_sequence,
             'dP/dx': p_sequence / self.domain_length,
             'flow_rate': Q,
             'mu_app': mu_app,
-            'gamma_dot': gamma_dot
+            'u': u
         }
         
         return self.results
@@ -149,11 +148,12 @@ class StokesAlgorithm(BaseAlgorithm):
             Intrinsic permeability in m²
         """
         pn = self.network.network
-    
+        R = pn['throat.diameter']/2
+        L = pn['throat.length']
         reference_phase = op.phase.Phase(network=pn)
-        reference_phase['pore.viscosity'] = 1.0
         reference_phase.add_model_collection(op.models.collections.physics.basic)
-        reference_phase.regenerate_models()
+        reference_phase['pore.viscosity'] = 1.0
+        reference_phase['throat.hydraulic_conductance'] = np.pi*R**4/(8*L)
         
         inlet_pores = pn.pores('inlet')
         outlet_pores = pn.pores('outlet')
