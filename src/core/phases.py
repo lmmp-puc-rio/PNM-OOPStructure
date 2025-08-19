@@ -176,7 +176,7 @@ class Phases:
             # Replace non-finite values with a large number
             nanMask = ~np.isfinite(g)
             if np.any(nanMask):
-                g[nanMask] = 1e16
+                g[nanMask] = 0
             return g
         
         self.add_non_newtonian_volumetric_flow_rate_model(phase_model)
