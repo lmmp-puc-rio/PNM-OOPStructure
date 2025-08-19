@@ -67,6 +67,7 @@ class Phases:
                 phase_model[prop] = raw.properties[prop]
             else:
                 raise ValueError(f"Unknown property prefix in {prop}")
+        phase_model['pore.pressure'] = (np.random.uniform(0, 1, size=phase_model.Np)) * min(self.network.network['throat.diameter'])
         phase_model.regenerate_models()
         return phase_model
 

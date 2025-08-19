@@ -116,7 +116,7 @@ class StokesAlgorithm(BaseAlgorithm):
         for p in p_sequence:
             self.algorithm.set_value_BC(pores=inlet_pores, values=p, mode='overwrite')
             self.algorithm.set_value_BC(pores=outlet_pores, values=0, mode='overwrite')
-            self.algorithm.run()
+            self.algorithm.run(x0=phase_model['pore.pressure'])
             
             phase_model.update(self.algorithm.soln)
             flow_rate = self.algorithm.rate(pores=inlet_pores, mode='group')[0]
