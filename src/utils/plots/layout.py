@@ -68,6 +68,16 @@ ABSOLUTE_PERMEABILITY_LAYOUT = {
     "sci_notation": False,
     "legend": False,
     }
+APPARENT_VISCOSITY_LAYOUT = {
+    "figsize": (6, 6),
+    "title": "Apparent Viscosity",
+    "title_fontsize": 16,
+    "xlabel": r"$Velocity [m/s]$",
+    "ylabel": r"$\mu_{app} [Pa \cdot s]$",
+    "grid": True,
+    "sci_notation": False,
+    "legend": False,
+    }
 CAPILLARY_PRESSURE_LAYOUT = {
     "figsize": (6, 6),
     "title": "Capillary Pressure",
@@ -100,6 +110,7 @@ def get_plot_layout(plot_name: str):
         'invasion_3d': INVASION_3D_LAYOUT,
         'relative_permeability': RELATIVE_PERMEABILITY_LAYOUT,
         'absolute_permeability': ABSOLUTE_PERMEABILITY_LAYOUT,
+        'apparent_viscosity': APPARENT_VISCOSITY_LAYOUT,
         'capillary_pressure': CAPILLARY_PRESSURE_LAYOUT,
     }
     
