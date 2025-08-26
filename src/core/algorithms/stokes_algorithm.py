@@ -136,41 +136,6 @@ class StokesAlgorithm(BaseAlgorithm):
         
         return self.results
         
-    def calculate_permeability(self):
-        r"""
-        Calculate intrinsic permeability using unit viscosity reference flow.
-        
-        The permeability is calculated by running a reference Stokes flow
-        simulation with unit viscosity and unit pressure drop.
-        
-        Returns
-        -------
-        K : float
-            Intrinsic permeability in m²
-        """
-        pn = self.network.network
-        R = pn['throat.diameter']/2
-        L = pn['throat.length']
-        reference_phase = op.phase.Phase(network=pn)
-        reference_phase.add_model_collection(op.models.collections.physics.basic)
-        reference_phase['pore.viscosity'] = 1.0
-        reference_phase['throat.hydraulic_conductance'] = np.pi*R**4/(8*L)
-        
-        inlet_pores = pn.pores('inlet')
-        outlet_pores = pn.pores('outlet')
-
-        flow = op.algorithms.StokesFlow(network=pn, phase=reference_phase)
-        flow.set_value_BC(pores=inlet_pores, values=1)
-        flow.set_value_BC(pores=outlet_pores, values=0)
-        flow.run()
-        
-        # Calculate permeability: K = Q * L * μ / (A * ΔP)
-        # With μ = 1 and ΔP = 1, this simplifies to K = Q * L / A
-        Q = flow.rate(pores=inlet_pores, mode='group')[0]
-        K = Q * self.domain_length / self.domain_area
-        
-        return K
-        
     def _setup_non_newtonian_conductance(self):
         r"""Configure non-Newtonian conductance model for the phase."""
         phase_model = self.phase['model']
