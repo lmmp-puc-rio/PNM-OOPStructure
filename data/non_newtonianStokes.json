@@ -1,0 +1,39 @@
+{
+    "network": {
+        "type": "cubic",
+        "project_name": "Non_newtonian_Stokes",
+        "size": [
+            25,
+            25,
+            25
+        ],
+        "seed": 15,
+        "spacing": 1e-4
+    },
+    "phases": [
+        {
+            "model": "water",
+            "name": "flopaam",
+            "color": "#00ffff",
+            "properties": {
+                "param.power_law_index": 0.2,
+                "param.mu_inf": 0.01,
+                "param.mu_0":0.035,
+                "param.gamma_dot_inf": 647.599,
+                "param.gamma_dot_0": 2
+            }
+        }
+    ],
+    "algorithm": [
+        {
+            "type": "stokes",
+            "name": "stokesSimulation",
+            "phase": "flopaam",
+            "inlet": "left",
+            "outlet": "right",
+            "pressures": 200,
+            "initial_pressure": 0.001,
+            "final_pressure": 25.0
+        }
+    ]
+}

@@ -14,6 +14,7 @@ class NetworkType(Enum):
     """
     CUBIC       = "cubic"
     IMPORTED    = "imported"
+    IMAGE       = "image"
     
     @classmethod
     def _missing_(cls, value):
@@ -22,6 +23,8 @@ class NetworkType(Enum):
             return cls.CUBIC
         if value in ("imported", "import", "data", "dat"):
             return cls.IMPORTED
+        if value in ("image", "images", "img", "image2d", "image3d"):
+            return cls.IMAGE
         raise ValueError(f"NetworkType: {value}")
     
 class PhaseModel(Enum):
@@ -39,6 +42,22 @@ class PhaseModel(Enum):
         if value in ("air","co2"):
             return cls.AIR
         raise ValueError(f"PhaseModel: {value}")
+    
+class AlgorithmType(Enum):
+    r"""
+    Enum for supported algorithm types.
+    """
+    DRAINAGE    = "drainage"
+    STOKES      = "stokes"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("drainage", "imbibition"):
+            return cls.DRAINAGE
+        if value in ("stokes"):
+            return cls.STOKES
+        raise ValueError(f"AlgorithmType: {value}")
 
 @dataclass
 class NetworkConfig:
@@ -61,6 +80,10 @@ class NetworkConfig:
         Spacing between pore centers in each direction (required for cubic).
     seed : int, optional
         Random seed (required for cubic).
+    file : str, optional
+        Path to image file (required for image networks).
+    properties : dict, optional
+        Additional properties for the network (e.g., voxel size, accuracy).
     """
     type:           NetworkType
     project_name:   str
@@ -69,6 +92,8 @@ class NetworkConfig:
     prefix:         str | None = None
     spacing:        float | None = None
     seed:           int | None = None
+    file:           str | None = None
+    properties:     dict | None = None
     
     def __post_init__(self):
         r"""
@@ -82,6 +107,10 @@ class NetworkConfig:
             missing = [p for p in ("path", "prefix") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
+        elif self.type is NetworkType.IMAGE:
+            missing = [p for p in ("file",) if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Image Network missing parameters: {', '.join(missing)}")
         if isinstance(self.size, list):
             self.size = tuple(self.size)
 
@@ -113,6 +142,8 @@ class AlgorithmConfig:
 
     Parameters
     ----------
+    type : AlgorithmType
+        Type of algorithm (e.g., AlgorithmType.DRAINAGE, AlgorithmType.STOKES).
     name : str
         Name of the algorithm.
     phase : str
@@ -124,11 +155,14 @@ class AlgorithmConfig:
     pressures : int, optional
         Number of pressure steps.
     """
-    name:           str
-    phase:          str
-    inlet:          tuple[str, ...]
-    outlet:         tuple[str, ...] | None = None
-    pressures:      int | None = None
+    type:               AlgorithmType
+    name:               str
+    phase:              str
+    inlet:              tuple[str, ...]
+    outlet:             tuple[str, ...] | None = None
+    pressures:          int | None = None
+    initial_pressure:   float | None = None
+    final_pressure:     float | None = None
     
     def __post_init__(self):
         r"""
@@ -144,6 +178,15 @@ class AlgorithmConfig:
             self.outlet = tuple(self.outlet)
         if isinstance(self.pressures, float):
             self.pressures = int(self.pressures)
+        if self.type is AlgorithmType.DRAINAGE:
+            missing = [p for p in ("name", "phase", "inlet") if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Drainage/Imbibition Algorithm missing parameters: {', '.join(missing)}")
+        if self.type is AlgorithmType.STOKES:
+            missing = [p for p in ("name", "phase", "inlet", "outlet", "pressures", 
+                                   "initial_pressure", "final_pressure") if getattr(self, p) is None]
+            if missing:
+                raise ValueError(f"Stokes Algorithm missing parameters: {', '.join(missing)}")
 
 @dataclass
 class ProjectConfig:
@@ -192,6 +235,8 @@ class ConfigParser:
             size            = network_data.get("size"),
             spacing         = network_data.get("spacing"), 
             seed            = network_data.get("seed"),
+            file            = network_data.get("file"),
+            properties      = network_data.get("properties")
         )
         
     @classmethod
@@ -220,11 +265,14 @@ class ConfigParser:
         for algorithm in algorithm_data:
             algorithms.append(
                 AlgorithmConfig(
-                    name            = algorithm.get("name"),
-                    phase           = algorithm.get("phase"),
-                    inlet           = algorithm.get("inlet"),
-                    outlet          = algorithm.get("outlet"),
-                    pressures       = algorithm.get("pressures"),
+                    type                = AlgorithmType(algorithm.get("type")),
+                    name                = algorithm.get("name"),
+                    phase               = algorithm.get("phase"),
+                    inlet               = algorithm.get("inlet"),
+                    outlet              = algorithm.get("outlet"),
+                    pressures           = algorithm.get("pressures"),
+                    initial_pressure    = algorithm.get("initial_pressure"),
+                    final_pressure      = algorithm.get("final_pressure")
                 )
             )
         return tuple(algorithms)

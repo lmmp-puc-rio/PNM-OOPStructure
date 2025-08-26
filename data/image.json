@@ -1,0 +1,52 @@
+{
+    "network": {
+        "type": "image",
+        "project_name": "Saphire",
+        "file": "/home/stelio/OpenPNM/data/images/EOR-D82 - Saphire Device/Combined Stacks_2_Cutted_ChanneledInlet.tif",
+        "properties":{
+            "voxel_size": 1,
+            "r_max": 50
+        }
+    },
+    "phases": [
+        {
+            "model": "water",
+            "name": "water",
+            "color": "#0000ff",
+            "properties": {
+                "pore.viscosity": 1e-5,
+                "pore.surface_tension": 0.072,
+                "pore.contact_angle": 30.0,
+                "throat.diffusivity": 1e-8
+            }
+        },
+        {
+            "model": "air",
+            "name": "co2",
+            "color": "#ff0000",
+            "properties": {
+                "pore.surface_tension": 0.072,
+                "pore.contact_angle": 150.0,
+                "throat.diffusivity": 1e-8
+            }
+        }
+    ],
+    "algorithm": [
+        {
+            "type": "drainage",
+            "name": "drainageSimulation",
+            "phase": "co2",
+            "inlet": "inlets",
+            "outlet": "outlets",
+            "pressures": 500
+        },
+        {
+            "type": "imbibition",
+            "name": "imbibitionSimulation",
+            "phase": "water",
+            "inlet": "inlets",
+            "outlet": "outlets",
+            "pressures": 200
+        }
+    ]
+}

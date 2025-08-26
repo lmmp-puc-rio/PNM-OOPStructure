@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
        
 # Install OpenSSH
 RUN apt install openssh-server sudo -y
+RUN apt-get update
+RUN apt-get install build-essential -y
 
 # Install git and any other dependencies
 RUN apt-get update && apt-get install -y git wget
@@ -34,7 +36,7 @@ WORKDIR /opt
 
 # RUN python3 -m venv openpnm_virtualenv
 
-# Install python package from github instead of pypi repository.
+# Install OpenPNM python package from github instead of pypi repository.
 RUN git clone https://github.com/PMEAL/OpenPNM
 WORKDIR ./OpenPNM
 
@@ -43,8 +45,18 @@ COPY ./patches/* .
 # Apply patches to the OpenPNM repository
 RUN git apply --ignore-space-change --ignore-whitespace --reject --whitespace=fix *.patch
 
+# Install package in editable mode, i.e., 
+# allows you to modify the source code of the package, 
+# and the changes will be immediately reflected without needing to reinstall the package. 
+# RUN /opt/openpnm_virtualenv/bin/pip install -e .
+RUN pip install -e .
+
 # RUN /opt/openpnm_virtualenv/bin/pip install -r requirements.txt
 RUN pip install -r requirements.txt
+
+WORKDIR /home/${USERNAME}/OpenPNM
+# Install PoreSpy python package from github instead of pypi repository.
+RUN pip install git+https://github.com/PMEAL/porespy.git@dev
 
 # Force older version of scipy to prevent deprecated usage
 # RUN /opt/openpnm_virtualenv/bin/pip install scipy==1.12.0
@@ -52,11 +64,7 @@ RUN pip install scipy==1.12.0
 # RUN /opt/openpnm_virtualenv/bin/pip install pypardiso
 RUN pip install pypardiso
 
-# Install package in editable mode, i.e., 
-# allows you to modify the source code of the package, 
-# and the changes will be immediately reflected without needing to reinstall the package. 
-# RUN /opt/openpnm_virtualenv/bin/pip install -e .
-RUN pip install -e .
+
 
 # RUN /opt/openpnm_virtualenv/bin/pip install ipykernel
 RUN pip install ipykernel

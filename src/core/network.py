@@ -1,6 +1,8 @@
 from utils.config_parser import NetworkType
 import numpy as np
 import openpnm as op
+import skimage.io as sc
+import porespy as ps
 
 class Network:
     r"""
@@ -44,6 +46,8 @@ class Network:
             return self._create_cubic()
         elif self.config.type == NetworkType.IMPORTED:
             return self._create_imported()
+        elif self.config.type == NetworkType.IMAGE:
+            return self._create_image()
         else:
             raise ValueError(f"NetworkType: {self.config.type}")
 
@@ -81,3 +85,81 @@ class Network:
         pn.regenerate_models()
         return pn
         
+    def _create_image(self):
+        r"""
+        Creates a network from an image file.
+        """
+        im = sc.imread(self.config.file, as_gray=True)
+        
+        snow_params = {}
+        for param_name in ['voxel_size', 'r_max', 'accuracy', 'sigma','boundary_width']:
+            param_value = self.config.properties.get(param_name)
+            if param_value is not None:
+                snow_params[param_name] = param_value
+        
+        snow= ps.networks.snow2(im.T, **snow_params)
+        pn = op.io.network_from_porespy(snow.network)
+        h = op.utils.check_network_health(pn)
+        op.topotools.trim(network=pn, pores=h['disconnected_pores'])
+        pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
+        pn['pore.diameter'] = pn["pore.inscribed_diameter"]
+        pn['throat.diameter'] = pn["throat.inscribed_diameter"]
+        pn['pore.inlets'] = pn["pore.xmin"]
+        pn['pore.outlets'] = pn["pore.xmax"]
+        pn['throat.spacing'] = pn['throat.total_length']
+        pn.regenerate_models()
+        return pn
+        
+    def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
+        r"""
+        Set inlet and outlet pores using specific pore numbers.
+        
+        This method allows direct specification of which pores should be
+        designated as inlets and outlets using their indices. You can set
+        only inlets, only outlets, or both.
+        
+        Parameters
+        ----------
+        inlet_pores : array_like, optional
+            List or array of pore indices to use as inlets. If None, inlets are not modified.
+        outlet_pores : array_like, optional
+            List or array of pore indices to use as outlets. If None, outlets are not modified.
+        """        
+        pn = self.network
+        
+        if inlet_pores is not None:
+            inlet_pores = np.asarray(inlet_pores)
+            pn['pore.inlets'] = False
+            pn['pore.inlets'][inlet_pores] = True
+        
+        if outlet_pores is not None:
+            outlet_pores = np.asarray(outlet_pores)
+            pn['pore.outlets'] = False
+            pn['pore.outlets'][outlet_pores] = True
+            
+    def get_inlet_outlet_info(self):
+        r"""
+        Get information about current inlet and outlet pores.
+        
+        Returns
+        -------
+        info : dict
+            Dictionary containing inlet/outlet information
+        """
+        pn = self.network
+        
+        inlet_pores = pn.pores('inlets')
+        outlet_pores = pn.pores('outlets')
+        
+        info = {
+            'num_inlets': len(inlet_pores),
+            'num_outlets': len(outlet_pores),
+            'inlet_pores': inlet_pores,
+            'outlet_pores': outlet_pores,
+            'total_pores': pn.Np,
+            'inlet_fraction': len(inlet_pores) / pn.Np,
+            'outlet_fraction': len(outlet_pores) / pn.Np
+        }
+            
+        return info
+    
