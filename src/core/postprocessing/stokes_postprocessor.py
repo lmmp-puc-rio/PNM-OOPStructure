@@ -151,11 +151,17 @@ class StokesPostProcessor(BasePostProcessor):
         results = algorithm.results
         plotter = Plotter2D(
             layout='apparent_viscosity', 
-            title=f'Apparent Viscosity {algorithm_name}',  
+            title=f'Apparent Viscosity {algorithm_name}',
+            ylabel=r'$\mu_{app} [cP]$'  ,
+            ymin = 1,
+            ymax = 10
         )
         ax = plotter.ax
-        ax.plot(results['u'], results['mu_app'], color=phase_dict['color'])
-        
+        print(results['u'])
+        print(results['mu_app'])
+        ax.plot(results['u'], results['mu_app']*1000, color=phase_dict['color'])
+        ax.set_yscale('log')
+        ax.set_xscale('log')
         plotter.apply_layout()
         output_file = output_file or os.path.join(
             self.graph_path, f'appVisc_{algorithm_name}.png'
