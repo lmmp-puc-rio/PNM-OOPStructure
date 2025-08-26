@@ -144,6 +144,74 @@ class DrainagePostProcessor(BasePostProcessor):
         )
         plotter.save(output_file)
         return output_file
+
+    def plot_hysteresis(self, algorithm_names, Snwp_num=20, output_file=None):
+        r"""
+        Plot relative permeability curves for both phases.
+        
+        Parameters
+        ----------
+        algorithm_name : str
+            Name of the drainage algorithm
+        Snwp_num : int, default 20
+            Number of saturation points to calculate
+        output_file : str, optional
+            Custom output file path
+            
+        Returns
+        -------
+        output_file : str
+            Path to the saved plot
+        """
+        wetting_phase = {'name': 'Wetting Phase','color': ['#0000ff','#000066'],'Snwp': [],'relperm': [], 'algorithm_name': []}
+        non_wetting_phase = {'name': 'Non-Wetting Phase','color': ['#ff0000','#660000'],'Snwp': [],'relperm': [], 'algorithm_name': []}
+        for algorithm_name in algorithm_names:
+            alg_dict = self.algorithm_manager.get_algorithm(algorithm_name)        
+            algorithm = alg_dict['algorithm']
+            pn = self.algorithm_manager.network.network
+        
+            wp = self.algorithm_manager.phases.get_wetting_phase()
+            nwp = self.algorithm_manager.phases.get_non_wetting_phase()
+            wp_model = wp['model']
+            nwp_model = nwp['model']
+            
+            self.algorithm_manager.phases.add_conduit_conductance_model(wp_model)
+            self.algorithm_manager.phases.add_conduit_conductance_model(nwp_model)
+            
+            inlet = pn.Ps[algorithm.algorithm['pore.bc.inlet']]
+            outlet = pn.Ps[algorithm.algorithm['pore.bc.outlet']]
+            
+            Snwparr_alg, relperm_nwp_alg, relperm_wp_alg = self._calculate_relative_permeability(
+                pn, wp_model, nwp_model, algorithm.algorithm, inlet, outlet, Snwp_num
+            )
+            wetting_phase['Snwp'].append(Snwparr_alg)
+            wetting_phase['relperm'].append(relperm_wp_alg)
+            wetting_phase['algorithm_name'].append(algorithm_name)
+            non_wetting_phase['Snwp'].append(Snwparr_alg)
+            non_wetting_phase['relperm'].append(relperm_nwp_alg)
+            non_wetting_phase['algorithm_name'].append(algorithm_name)
+
+        for phase in [wetting_phase, non_wetting_phase]:
+            plotter = Plotter2D(
+                layout='relative_permeability', 
+                title=f"Relative Permeability {phase['name']}"
+            )
+            ax = plotter.ax
+            ax.plot(phase['Snwp'][0], phase['relperm'][0], '->', label=f"Kr_{phase['algorithm_name'][0]}", 
+                    color=phase['color'][0],markerfacecolor='#ffffff')
+            ax.plot(phase['Snwp'][1], phase['relperm'][1], '--<', label=f"Kr_{phase['algorithm_name'][1]}", 
+                    color=phase['color'][1],markerfacecolor='#ffffff')
+            # Set x-axis tick label font size
+            ax.tick_params(axis='x', labelsize=18) 
+
+            # Set y-axis tick label font size
+            ax.tick_params(axis='y', labelsize=18) 
+            plotter.apply_layout()
+            output_file = os.path.join(
+                self.graph_path, f"hysteresis_{phase['name']}.png"
+            )
+            plotter.save(output_file)
+        return output_file
         
     def plot_capillary_pressure_curve(self, algorithm_name, output_file=None):
         r"""
