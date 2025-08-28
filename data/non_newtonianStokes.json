@@ -8,7 +8,9 @@
             25
         ],
         "seed": 15,
-        "spacing": 1e-4
+        "spacing": 1e-4,
+        "inlet": "left",
+        "outlet": "right"
     },
     "phases": [
         {
@@ -29,8 +31,6 @@
             "type": "stokes",
             "name": "stokesSimulation",
             "phase": "flopaam",
-            "inlet": "left",
-            "outlet": "right",
             "pressures": 50,
             "initial_pressure": 0.001,
             "final_pressure": 1e3

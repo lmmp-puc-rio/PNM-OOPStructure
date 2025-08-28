@@ -3,7 +3,9 @@
         "type": "import",
         "project_name": "Berea Non newtonian",
         "path": "/home/stelio/OpenPNM/data/rock_samples/Berea",
-        "prefix": "Berea"
+        "prefix": "Berea",
+        "inlet": "inlets",
+        "outlet": "outlets"
     },
     "phases": [
         {
@@ -24,8 +26,6 @@
             "type": "stokes",
             "name": "stokesSimulation",
             "phase": "flopaam",
-            "inlet": "inlets",
-            "outlet": "outlets",
             "pressures": 200,
             "initial_pressure": 0.0001,
             "final_pressure": 1e6
