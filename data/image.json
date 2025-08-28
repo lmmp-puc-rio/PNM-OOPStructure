@@ -6,7 +6,9 @@
         "properties":{
             "voxel_size": 1,
             "r_max": 50
-        }
+        },
+        "inlet": "inlets",
+        "outlet": "outlets"
     },
     "phases": [
         {
@@ -36,16 +38,12 @@
             "type": "drainage",
             "name": "drainageSimulation",
             "phase": "co2",
-            "inlet": "inlets",
-            "outlet": "outlets",
             "pressures": 500
         },
         {
             "type": "imbibition",
             "name": "imbibitionSimulation",
             "phase": "water",
-            "inlet": "inlets",
-            "outlet": "outlets",
             "pressures": 200
         }
     ]

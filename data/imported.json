@@ -3,7 +3,9 @@
         "type": "import",
         "project_name": "BereaOld",
         "path": "/home/stelio/OpenPNM/data/rock_samples/Berea",
-        "prefix": "Berea"
+        "prefix": "Berea",
+        "inlet": "inlets",
+        "outlet": "outlets"
     },
     "phases": [
         {
@@ -33,16 +35,12 @@
             "type": "drainage",
             "name": "drainageSimulation",
             "phase": "co2",
-            "inlet": "inlets",
-            "outlet": "outlets",
             "pressures": 200
         },
         {
             "type": "imbibition",
             "name": "imbibitionSimulation",
             "phase": "water",
-            "inlet": "inlets",
-            "outlet": "outlets",
             "pressures": 200
         }
     ]

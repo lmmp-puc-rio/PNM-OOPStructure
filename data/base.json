@@ -8,7 +8,9 @@
             1
         ],
         "seed": 15,
-        "spacing": 1e-4
+        "spacing": 1e-4,
+        "inlet": "left",
+        "outlet": "right"
     },
     "phases": [
         {
@@ -38,16 +40,12 @@
             "type": "drainage",
             "name": "drainageSimulation",
             "phase": "co2",
-            "inlet": "left",
-            "outlet": "right",
             "pressures": 200
         },
         {
             "type": "imbibition",
             "name": "imbibitionSimulation",
             "phase": "water",
-            "inlet": "left",
-            "outlet": "right",
             "pressures": 200
         }
     ]

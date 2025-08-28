@@ -79,22 +79,3 @@ class BaseAlgorithm(ABC):
             Dictionary containing simulation results
         """
         pass
-        
-    def _setup_boundary_conditions(self, inlet_label, outlet_label=None):
-        r"""
-        Set up inlet and outlet boundary condition labels on the network.
-        
-        Parameters
-        ----------
-        inlet_label : str
-            Label identifying inlet pores (e.g., 'left', 'top')
-        outlet_label : str, optional
-            Label identifying outlet pores (e.g., 'right', 'bottom')
-        """
-        pn = self.network.network
-        inlet_pores = pn.pores(inlet_label)
-        pn['pore.inlet'] = np.isin(pn.Ps, inlet_pores)
-        
-        if outlet_label is not None:
-            outlet_pores = pn.pores(outlet_label)
-            pn['pore.outlet'] = np.isin(pn.Ps, outlet_pores)

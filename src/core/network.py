@@ -33,6 +33,8 @@ class Network:
         # Determine dimensionality based on pore coordinates
         if len(np.unique(self.network['pore.coords'].T[2])) > 1:
             self.dim = '3D'
+        self._setup_boundary_conditions()
+        self._setup_domain_properties()
 
     def _create_network(self):
         r"""
@@ -109,7 +111,57 @@ class Network:
         pn['throat.spacing'] = pn['throat.total_length']
         pn.regenerate_models()
         return pn
+    
+    def _setup_boundary_conditions(self):
+        r"""
+        Set up inlet and outlet boundary condition labels on the network.
         
+        This method sets up 'pore.inlet' and 'pore.outlet' labels based on the
+        configuration and removes any throats connecting inlet-inlet or outlet-outlet
+        pores to maintain proper boundary conditions.
+        """
+        pn = self.network
+        inlet_label = self.config.inlet
+        outlet_label = None
+        if self.config.outlet is not None:
+            outlet_label = self.config.outlet
+
+        inlet_pores = pn.pores(inlet_label)
+        pn['pore.inlet'] = np.isin(pn.Ps, inlet_pores)
+        conns = pn['throat.conns']
+        inlet_inlet_throats = pn['pore.inlet'][conns[:, 0]] & pn['pore.inlet'][conns[:, 1]]
+        
+        if outlet_label is not None:
+            outlet_pores = pn.pores(outlet_label)
+            pn['pore.outlet'] = np.isin(pn.Ps, outlet_pores)
+            outlet_outlet_throats = pn['pore.outlet'][conns[:, 0]] & pn['pore.outlet'][conns[:, 1]]
+            op.topotools.trim(network=pn, throats=inlet_inlet_throats | outlet_outlet_throats)
+        else:
+            op.topotools.trim(network=pn, throats=inlet_inlet_throats)
+        pn.regenerate_models()
+        
+    def _setup_domain_properties(self):
+        r"""
+        Calculate domain area and length as network attributes.
+        """
+        pn = self.network
+        inlet_pores = pn.pores('inlet')
+        outlet_pores = pn.pores('outlet')
+        
+        if self.dim == '3D':
+            self.domain_area = op.topotools.get_domain_area(pn, inlets=inlet_pores, outlets=outlet_pores)
+            self.domain_length = op.topotools.get_domain_length(pn, inlets=inlet_pores, outlets=outlet_pores)
+        else:
+            coords = pn['pore.coords']
+            inlet_coords = coords[inlet_pores]
+            # Calculate cross-sectional area (y-range for 2D, assuming z-thickness = 1)
+            self.domain_area = np.max(inlet_coords[:, 1]) - np.min(inlet_coords[:, 1])
+        
+            # Calculate domain length
+            inlet_x = np.mean(inlet_coords[:, 0])
+            outlet_x = np.mean(coords[outlet_pores][:, 0])
+            self.domain_length = abs(outlet_x - inlet_x)
+    
     def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
         r"""
         Set inlet and outlet pores using specific pore numbers.
@@ -162,4 +214,58 @@ class Network:
         }
             
         return info
+    
+    def calculate_permeability(self):
+        r"""
+        Calculate permeability.
+        
+        Returns
+        -------
+        K : float
+            permeability in m²
+        """
+        pn = self.network
+        R = pn['throat.diameter']/2
+        L = pn['throat.length']
+        reference_phase = op.phase.Phase(network=pn)
+        reference_phase.add_model_collection(op.models.collections.physics.basic)
+        reference_phase['pore.viscosity'] = 1.0
+        reference_phase['throat.hydraulic_conductance'] = np.pi*R**4/(8*L)
+        
+        inlet_pores = pn.pores('inlet')
+        outlet_pores = pn.pores('outlet')
+
+        flow = op.algorithms.StokesFlow(network=pn, phase=reference_phase)
+        flow.set_value_BC(pores=inlet_pores, values=1)
+        flow.set_value_BC(pores=outlet_pores, values=0)
+        flow.run()
+        
+        # Calculate permeability: K = Q * L * μ / (A * ΔP)
+        # With μ = 1 and ΔP = 1, this simplifies to K = Q * L / A
+        Q = flow.rate(pores=inlet_pores, mode='group')[0]
+        
+        # Use pre-calculated domain properties
+        K = Q * self.domain_length / self.domain_area
+        
+        return K
+
+    def calculate_porosity(self):
+        r"""
+        Calculate porosity of the pore network.
+        
+        The porosity is calculated as the ratio of void volume (pores + throats)
+        to the total bulk volume of the network domain.
+        
+        Returns
+        -------
+        porosity : float
+            Network porosity (dimensionless)
+        """
+        pn = self.network
+        Vol_void = np.sum(pn['pore.volume']) + np.sum(pn['throat.volume'])
+        
+        # Use pre-calculated domain properties
+        Vol_bulk = self.domain_area * self.domain_length
+        porosity = Vol_void / Vol_bulk
+        return porosity
     

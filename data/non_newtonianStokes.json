@@ -8,19 +8,21 @@
             25
         ],
         "seed": 15,
-        "spacing": 1e-4
+        "spacing": 1e-4,
+        "inlet": "left",
+        "outlet": "right"
     },
     "phases": [
         {
             "model": "water",
             "name": "flopaam",
-            "color": "#00ffff",
+            "color": "#000000",
             "properties": {
-                "param.power_law_index": 0.2,
-                "param.mu_inf": 0.01,
-                "param.mu_0":0.035,
-                "param.gamma_dot_inf": 647.599,
-                "param.gamma_dot_0": 2
+                "param.power_law_index": 0.924,
+                "param.mu_inf": 1e-3,
+                "param.mu_0":0.006090,
+                "param.gamma_dot_inf": 100000,
+                "param.gamma_dot_0": 10
             }
         }
     ],
@@ -29,11 +31,9 @@
             "type": "stokes",
             "name": "stokesSimulation",
             "phase": "flopaam",
-            "inlet": "left",
-            "outlet": "right",
-            "pressures": 200,
+            "pressures": 50,
             "initial_pressure": 0.001,
-            "final_pressure": 25.0
+            "final_pressure": 1e3
         }
     ]
 }

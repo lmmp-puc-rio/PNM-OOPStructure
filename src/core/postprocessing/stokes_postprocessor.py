@@ -128,3 +128,41 @@ class StokesPostProcessor(BasePostProcessor):
         )
         plotter.save(output_file)
         return output_file
+
+    def plot_apparent_viscosity(self, algorithm_name, output_file=None):
+        r"""
+        Plot apparent viscosity vs velocity.
+        
+        Parameters
+        ----------
+        algorithm_name : str
+            Name of the Stokes algorithm
+        output_file : str, optional
+            Custom output file path
+            
+        Returns
+        -------
+        output_file : str
+            Path to the saved plot
+        """
+        alg_dict = self.algorithm_manager.get_algorithm(algorithm_name)
+        algorithm = alg_dict['algorithm']
+        phase_dict = alg_dict['phase']
+        results = algorithm.results
+        plotter = Plotter2D(
+            layout='apparent_viscosity', 
+            title=f'Apparent Viscosity {algorithm_name}',
+            ylabel=r'$\mu_{app} [cP]$'  ,
+            ymin = 1,
+            ymax = 10
+        )
+        ax = plotter.ax
+        ax.plot(results['u'], results['mu_app']*1000, color=phase_dict['color'])
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        plotter.apply_layout()
+        output_file = output_file or os.path.join(
+            self.graph_path, f'appVisc_{algorithm_name}.png'
+        )
+        plotter.save(output_file)
+        return output_file

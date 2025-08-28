@@ -67,6 +67,7 @@ class Phases:
                 phase_model[prop] = raw.properties[prop]
             else:
                 raise ValueError(f"Unknown property prefix in {prop}")
+        phase_model['pore.pressure'] = (np.random.uniform(0, 1, size=phase_model.Np)) * min(self.network.network['throat.diameter'])
         phase_model.regenerate_models()
         return phase_model
 
@@ -175,7 +176,7 @@ class Phases:
             # Replace non-finite values with a large number
             nanMask = ~np.isfinite(g)
             if np.any(nanMask):
-                g[nanMask] = 1e16
+                g[nanMask] = 0
             return g
         
         self.add_non_newtonian_volumetric_flow_rate_model(phase_model)

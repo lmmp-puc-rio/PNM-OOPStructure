@@ -123,8 +123,8 @@ class DrainagePostProcessor(BasePostProcessor):
         self.algorithm_manager.phases.add_conduit_conductance_model(wp_model)
         self.algorithm_manager.phases.add_conduit_conductance_model(nwp_model)
         
-        inlet = pn.Ps[algorithm.algorithm['pore.bc.inlet']]
-        outlet = pn.Ps[algorithm.algorithm['pore.bc.outlet']]
+        inlet = pn.pores('inlet')
+        outlet = pn.pores('outlet')
         
         Snwparr, relperm_nwp, relperm_wp = self._calculate_relative_permeability(
             pn, wp_model, nwp_model, algorithm.algorithm, inlet, outlet, Snwp_num
@@ -143,6 +143,74 @@ class DrainagePostProcessor(BasePostProcessor):
             self.graph_path, f'RP_{algorithm_name}.png'
         )
         plotter.save(output_file)
+        return output_file
+
+    def plot_hysteresis(self, algorithm_names, Snwp_num=20, output_file=None):
+        r"""
+        Plot relative permeability curves for both phases.
+        
+        Parameters
+        ----------
+        algorithm_name : str
+            Name of the drainage algorithm
+        Snwp_num : int, default 20
+            Number of saturation points to calculate
+        output_file : str, optional
+            Custom output file path
+            
+        Returns
+        -------
+        output_file : str
+            Path to the saved plot
+        """
+        wetting_phase = {'name': 'Wetting Phase','color': ['#0000ff','#000066'],'Snwp': [],'relperm': [], 'algorithm_name': []}
+        non_wetting_phase = {'name': 'Non-Wetting Phase','color': ['#ff0000','#660000'],'Snwp': [],'relperm': [], 'algorithm_name': []}
+        for algorithm_name in algorithm_names:
+            alg_dict = self.algorithm_manager.get_algorithm(algorithm_name)        
+            algorithm = alg_dict['algorithm']
+            pn = self.algorithm_manager.network.network
+        
+            wp = self.algorithm_manager.phases.get_wetting_phase()
+            nwp = self.algorithm_manager.phases.get_non_wetting_phase()
+            wp_model = wp['model']
+            nwp_model = nwp['model']
+            
+            self.algorithm_manager.phases.add_conduit_conductance_model(wp_model)
+            self.algorithm_manager.phases.add_conduit_conductance_model(nwp_model)
+            
+            inlet = pn.pores('inlet')
+            outlet = pn.pores('outlet')
+            
+            Snwparr_alg, relperm_nwp_alg, relperm_wp_alg = self._calculate_relative_permeability(
+                pn, wp_model, nwp_model, algorithm.algorithm, inlet, outlet, Snwp_num
+            )
+            wetting_phase['Snwp'].append(Snwparr_alg)
+            wetting_phase['relperm'].append(relperm_wp_alg)
+            wetting_phase['algorithm_name'].append(algorithm_name)
+            non_wetting_phase['Snwp'].append(Snwparr_alg)
+            non_wetting_phase['relperm'].append(relperm_nwp_alg)
+            non_wetting_phase['algorithm_name'].append(algorithm_name)
+
+        for phase in [wetting_phase, non_wetting_phase]:
+            plotter = Plotter2D(
+                layout='relative_permeability', 
+                title=f"Relative Permeability {phase['name']}"
+            )
+            ax = plotter.ax
+            ax.plot(phase['Snwp'][0], phase['relperm'][0], '->', label=f"Kr_{phase['algorithm_name'][0]}", 
+                    color=phase['color'][0],markerfacecolor='#ffffff')
+            ax.plot(phase['Snwp'][1], phase['relperm'][1], '--<', label=f"Kr_{phase['algorithm_name'][1]}", 
+                    color=phase['color'][1],markerfacecolor='#ffffff')
+            # Set x-axis tick label font size
+            ax.tick_params(axis='x', labelsize=18) 
+
+            # Set y-axis tick label font size
+            ax.tick_params(axis='y', labelsize=18) 
+            plotter.apply_layout()
+            output_file = os.path.join(
+                self.graph_path, f"hysteresis_{phase['name']}.png"
+            )
+            plotter.save(output_file)
         return output_file
         
     def plot_capillary_pressure_curve(self, algorithm_name, output_file=None):
@@ -203,7 +271,7 @@ class DrainagePostProcessor(BasePostProcessor):
         
         alg = algorithm.algorithm
         throats_ic = pn.Ts[alg['throat.ic_invaded']].copy()
-        pores_ic = np.union1d(pn.Ps[alg['pore.ic_invaded']].copy(), pn.Ps[alg['pore.bc.inlet']])
+        pores_ic = np.union1d(pn.Ps[alg['pore.ic_invaded']].copy(), pn.pores('inlet'))
         invasion_sequence = np.unique(
             alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])]
         )
@@ -306,7 +374,7 @@ class DrainagePostProcessor(BasePostProcessor):
         still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
         still_not_p = np.setdiff1d(pn.Ps[~mask_pore], pores_ic)
         
-        inlet = pn.Ps[alg['pore.bc.inlet']]
+        inlet = pn.pores('inlet')
         new_pores = np.union1d(new_pores, inlet)
         still_not_p = np.setdiff1d(still_not_p, inlet)
         
@@ -344,7 +412,7 @@ class DrainagePostProcessor(BasePostProcessor):
         trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
         trapped_throats = trap_condition
         
-        clusters_out = np.unique(s[alg['pore.bc.outlet']])
+        clusters_out = np.unique(s[pn.pores('outlet')])
         Ts = pn.find_neighbor_throats(pores=s >= 0)
         b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
         trapped_pores = np.isin(s, clusters_out, invert=True) & (s >= 0)

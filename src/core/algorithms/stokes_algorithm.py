@@ -56,9 +56,6 @@ class StokesAlgorithm(BaseAlgorithm):
         pn = self.network.network
         phase_model = self.phase['model']
         
-        # Use shared boundary condition setup
-        self._setup_boundary_conditions(self.config.inlet, self.config.outlet)
-        
         # Calculate domain properties for 3D networks if not already set
         if self.network.dim == '3D' and self.domain_length is None:
             self.domain_length = op.topotools.get_domain_length(
@@ -91,14 +88,15 @@ class StokesAlgorithm(BaseAlgorithm):
         """
         if self.algorithm is None:
             self.create_algorithm()
-        
+        self.algorithm.settings["f_rtol"] = 1e-6
+        self.algorithm.settings["x_rtol"] = 1e-6
         #TODO implement Phase.TYPE to define phase models and properties
         self._setup_non_newtonian_conductance()
         
         pn = self.network.network
         phase_model = self.phase['model']
         
-        K = self.calculate_permeability()
+        K = self.network.calculate_permeability()
         D = np.mean(pn['throat.diameter'])
         
         p_sequence = np.linspace(
@@ -116,7 +114,7 @@ class StokesAlgorithm(BaseAlgorithm):
         for p in p_sequence:
             self.algorithm.set_value_BC(pores=inlet_pores, values=p, mode='overwrite')
             self.algorithm.set_value_BC(pores=outlet_pores, values=0, mode='overwrite')
-            self.algorithm.run()
+            self.algorithm.run(x0=phase_model['pore.pressure'])
             
             phase_model.update(self.algorithm.soln)
             flow_rate = self.algorithm.rate(pores=inlet_pores, mode='group')[0]
@@ -124,51 +122,16 @@ class StokesAlgorithm(BaseAlgorithm):
             
         mu_app = K * self.domain_area * p_sequence / (Q * self.domain_length)
         u = Q / self.domain_area
-        gamma_dot = u / D
         
         self.results = {
             'pressure': p_sequence,
             'dP/dx': p_sequence / self.domain_length,
             'flow_rate': Q,
             'mu_app': mu_app,
-            'gamma_dot': gamma_dot
+            'u': u
         }
         
         return self.results
-        
-    def calculate_permeability(self):
-        r"""
-        Calculate intrinsic permeability using unit viscosity reference flow.
-        
-        The permeability is calculated by running a reference Stokes flow
-        simulation with unit viscosity and unit pressure drop.
-        
-        Returns
-        -------
-        K : float
-            Intrinsic permeability in m²
-        """
-        pn = self.network.network
-    
-        reference_phase = op.phase.Phase(network=pn)
-        reference_phase['pore.viscosity'] = 1.0
-        reference_phase.add_model_collection(op.models.collections.physics.basic)
-        reference_phase.regenerate_models()
-        
-        inlet_pores = pn.pores('inlet')
-        outlet_pores = pn.pores('outlet')
-
-        flow = op.algorithms.StokesFlow(network=pn, phase=reference_phase)
-        flow.set_value_BC(pores=inlet_pores, values=1)
-        flow.set_value_BC(pores=outlet_pores, values=0)
-        flow.run()
-        
-        # Calculate permeability: K = Q * L * μ / (A * ΔP)
-        # With μ = 1 and ΔP = 1, this simplifies to K = Q * L / A
-        Q = flow.rate(pores=inlet_pores, mode='group')[0]
-        K = Q * self.domain_length / self.domain_area
-        
-        return K
         
     def _setup_non_newtonian_conductance(self):
         r"""Configure non-Newtonian conductance model for the phase."""

@@ -70,6 +70,10 @@ class NetworkConfig:
         Type of network (e.g., NetworkType.CUBIC, NetworkType.IMPORTED).
     project_name : str
         Name of the project.
+    inlet : tuple of str
+        Inlet boundary condition(s).
+    outlet : tuple of str, optional
+        Outlet boundary condition(s).
     size : tuple of int, optional
         Network size (required for cubic).
     path : str, optional
@@ -87,6 +91,8 @@ class NetworkConfig:
     """
     type:           NetworkType
     project_name:   str
+    inlet:          tuple[str, ...]
+    outlet:         tuple[str, ...] | None = None
     size:           tuple[int, ...] | None = None
     path:           str | None = None
     prefix:         str | None = None
@@ -97,18 +103,29 @@ class NetworkConfig:
     
     def __post_init__(self):
         r"""
-        Validates required fields for each network type.
+        Validates required fields for each network type and ensures tuple types for inlets/outlets.
         """
+        # Convert inlet/outlet to tuples if needed
+        if isinstance(self.inlet, str):
+            self.inlet = (self.inlet,)
+        if isinstance(self.inlet, list):
+            self.inlet = tuple(self.inlet)
+        if isinstance(self.outlet, str):
+            self.outlet = (self.outlet,)
+        if isinstance(self.outlet, list):
+            self.outlet = tuple(self.outlet)
+            
+        # Validate required fields based on network type
         if self.type is NetworkType.CUBIC:
-            missing = [p for p in ("size", "spacing", "seed") if getattr(self, p) is None]
+            missing = [p for p in ("size", "spacing", "seed", "inlet") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Cubic Network missing parameters: {', '.join(missing)}")
         elif self.type is NetworkType.IMPORTED:
-            missing = [p for p in ("path", "prefix") if getattr(self, p) is None]
+            missing = [p for p in ("path", "prefix", "inlet") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Imported Network missing parameters: {', '.join(missing)}")
         elif self.type is NetworkType.IMAGE:
-            missing = [p for p in ("file",) if getattr(self, p) is None]
+            missing = [p for p in ("file", "inlet") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Image Network missing parameters: {', '.join(missing)}")
         if isinstance(self.size, list):
@@ -148,42 +165,28 @@ class AlgorithmConfig:
         Name of the algorithm.
     phase : str
         Name of the phase to use.
-    inlet : tuple of str
-        Inlet boundary condition(s).
-    outlet : tuple of str, optional
-        Outlet boundary condition(s).
     pressures : int, optional
         Number of pressure steps.
     """
     type:               AlgorithmType
     name:               str
     phase:              str
-    inlet:              tuple[str, ...]
-    outlet:             tuple[str, ...] | None = None
     pressures:          int | None = None
     initial_pressure:   float | None = None
     final_pressure:     float | None = None
     
     def __post_init__(self):
         r"""
-        Ensures tuple types for inlets/outlets and integer for pressures.
+        Ensures tuple types and validates required parameters.
         """
-        if isinstance(self.inlet, str):
-            self.inlet = (self.inlet,)
-        if isinstance(self.inlet, list):
-            self.inlet = tuple(self.inlet)
-        if isinstance(self.outlet, str):
-            self.outlet = (self.outlet,)
-        if isinstance(self.outlet, list):
-            self.outlet = tuple(self.outlet)
         if isinstance(self.pressures, float):
             self.pressures = int(self.pressures)
         if self.type is AlgorithmType.DRAINAGE:
-            missing = [p for p in ("name", "phase", "inlet") if getattr(self, p) is None]
+            missing = [p for p in ("name", "phase") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Drainage/Imbibition Algorithm missing parameters: {', '.join(missing)}")
         if self.type is AlgorithmType.STOKES:
-            missing = [p for p in ("name", "phase", "inlet", "outlet", "pressures", 
+            missing = [p for p in ("name", "phase", "pressures", 
                                    "initial_pressure", "final_pressure") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Stokes Algorithm missing parameters: {', '.join(missing)}")
@@ -230,6 +233,8 @@ class ConfigParser:
         return NetworkConfig(
             type            = NetworkType(network_data.get("type")),
             project_name    = network_data.get("project_name"),
+            inlet           = network_data.get("inlet"),
+            outlet          = network_data.get("outlet"),
             path            = network_data.get("path"),
             prefix          = network_data.get("prefix"),
             size            = network_data.get("size"),
@@ -268,8 +273,6 @@ class ConfigParser:
                     type                = AlgorithmType(algorithm.get("type")),
                     name                = algorithm.get("name"),
                     phase               = algorithm.get("phase"),
-                    inlet               = algorithm.get("inlet"),
-                    outlet              = algorithm.get("outlet"),
                     pressures           = algorithm.get("pressures"),
                     initial_pressure    = algorithm.get("initial_pressure"),
                     final_pressure      = algorithm.get("final_pressure")
