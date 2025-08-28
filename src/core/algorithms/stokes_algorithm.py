@@ -99,7 +99,7 @@ class StokesAlgorithm(BaseAlgorithm):
         pn = self.network.network
         phase_model = self.phase['model']
         
-        K = self.calculate_permeability()
+        K = self.network.calculate_permeability()
         D = np.mean(pn['throat.diameter'])
         
         p_sequence = np.linspace(

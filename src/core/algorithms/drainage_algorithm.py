@@ -51,9 +51,6 @@ class DrainageAlgorithm(BaseAlgorithm):
         pn = self.network.network
         phase_model = self.phase['model']
         
-        self._setup_boundary_conditions(self.config.inlet, self.config.outlet)
-        
-        # Get pore indices for algorithm boundary conditions
         inlet_pores = pn.pores('inlet')
         outlet_pores = None
         if self.config.outlet is not None:
