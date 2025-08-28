@@ -56,9 +56,6 @@ class StokesAlgorithm(BaseAlgorithm):
         pn = self.network.network
         phase_model = self.phase['model']
         
-        # Use shared boundary condition setup
-        self._setup_boundary_conditions(self.config.inlet, self.config.outlet)
-        
         # Calculate domain properties for 3D networks if not already set
         if self.network.dim == '3D' and self.domain_length is None:
             self.domain_length = op.topotools.get_domain_length(
