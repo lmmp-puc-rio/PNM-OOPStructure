@@ -53,7 +53,7 @@ class DrainageAlgorithm(BaseAlgorithm):
         
         inlet_pores = pn.pores('inlet')
         outlet_pores = None
-        if self.config.outlet is not None:
+        if hasattr(pn, 'pore.outlet') and 'pore.outlet' in pn.keys():
             outlet_pores = pn.pores('outlet')
 
         algorithm = op.algorithms.Drainage(

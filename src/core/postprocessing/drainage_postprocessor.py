@@ -123,8 +123,8 @@ class DrainagePostProcessor(BasePostProcessor):
         self.algorithm_manager.phases.add_conduit_conductance_model(wp_model)
         self.algorithm_manager.phases.add_conduit_conductance_model(nwp_model)
         
-        inlet = pn.Ps[algorithm.algorithm['pore.bc.inlet']]
-        outlet = pn.Ps[algorithm.algorithm['pore.bc.outlet']]
+        inlet = pn.pores('inlet')
+        outlet = pn.pores('outlet')
         
         Snwparr, relperm_nwp, relperm_wp = self._calculate_relative_permeability(
             pn, wp_model, nwp_model, algorithm.algorithm, inlet, outlet, Snwp_num
@@ -178,8 +178,8 @@ class DrainagePostProcessor(BasePostProcessor):
             self.algorithm_manager.phases.add_conduit_conductance_model(wp_model)
             self.algorithm_manager.phases.add_conduit_conductance_model(nwp_model)
             
-            inlet = pn.Ps[algorithm.algorithm['pore.bc.inlet']]
-            outlet = pn.Ps[algorithm.algorithm['pore.bc.outlet']]
+            inlet = pn.pores('inlet')
+            outlet = pn.pores('outlet')
             
             Snwparr_alg, relperm_nwp_alg, relperm_wp_alg = self._calculate_relative_permeability(
                 pn, wp_model, nwp_model, algorithm.algorithm, inlet, outlet, Snwp_num
@@ -271,7 +271,7 @@ class DrainagePostProcessor(BasePostProcessor):
         
         alg = algorithm.algorithm
         throats_ic = pn.Ts[alg['throat.ic_invaded']].copy()
-        pores_ic = np.union1d(pn.Ps[alg['pore.ic_invaded']].copy(), pn.Ps[alg['pore.bc.inlet']])
+        pores_ic = np.union1d(pn.Ps[alg['pore.ic_invaded']].copy(), pn.pores('inlet'))
         invasion_sequence = np.unique(
             alg['throat.invasion_sequence'][np.isfinite(alg['throat.invasion_sequence'])]
         )
@@ -374,7 +374,7 @@ class DrainagePostProcessor(BasePostProcessor):
         still_not_t = np.setdiff1d(pn.Ts[~mask_throat], throats_ic)
         still_not_p = np.setdiff1d(pn.Ps[~mask_pore], pores_ic)
         
-        inlet = pn.Ps[alg['pore.bc.inlet']]
+        inlet = pn.pores('inlet')
         new_pores = np.union1d(new_pores, inlet)
         still_not_p = np.setdiff1d(still_not_p, inlet)
         
@@ -412,7 +412,7 @@ class DrainagePostProcessor(BasePostProcessor):
         trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
         trapped_throats = trap_condition
         
-        clusters_out = np.unique(s[alg['pore.bc.outlet']])
+        clusters_out = np.unique(s[pn.pores('outlet')])
         Ts = pn.find_neighbor_throats(pores=s >= 0)
         b[Ts] = np.amax(s[pn.conns], axis=1)[Ts]
         trapped_pores = np.isin(s, clusters_out, invert=True) & (s >= 0)
