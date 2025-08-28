@@ -157,8 +157,6 @@ class StokesPostProcessor(BasePostProcessor):
             ymax = 10
         )
         ax = plotter.ax
-        print(results['u'])
-        print(results['mu_app'])
         ax.plot(results['u'], results['mu_app']*1000, color=phase_dict['color'])
         ax.set_yscale('log')
         ax.set_xscale('log')
