@@ -35,6 +35,7 @@ class Network:
             self.dim = '3D'
         self._setup_boundary_conditions()
         self._setup_domain_properties()
+        self._clean_disconnected_pores()
 
     def _create_network(self):
         r"""
@@ -79,11 +80,6 @@ class Network:
         pn.add_model_collection(op.models.collections.geometry.spheres_and_cylinders)
         pn.add_model(propname='pore.cluster_number', model=op.models.network.cluster_number)
         pn.add_model(propname='pore.cluster_size', model=op.models.network.cluster_size)
-        pn['pore.diameter'] = pn['pore.radius'] * 2
-        pn['throat.diameter'] = pn['throat.radius'] * 2
-        # Remove disconnected pores identified by network health check
-        h = op.utils.check_network_health(pn)
-        op.topotools.trim(network=pn, pores=h['disconnected_pores'])
         pn.regenerate_models()
         return pn
         
@@ -138,7 +134,6 @@ class Network:
             op.topotools.trim(network=pn, throats=inlet_inlet_throats | outlet_outlet_throats)
         else:
             op.topotools.trim(network=pn, throats=inlet_inlet_throats)
-        pn.regenerate_models()
         
     def _setup_domain_properties(self):
         r"""
@@ -161,6 +156,15 @@ class Network:
             inlet_x = np.mean(inlet_coords[:, 0])
             outlet_x = np.mean(coords[outlet_pores][:, 0])
             self.domain_length = abs(outlet_x - inlet_x)
+        
+    def _clean_disconnected_pores(self):
+        r"""
+        Removes disconnected pores from the network and regenerates models.
+        """
+        pn = self.network
+        h = op.utils.check_network_health(pn)
+        op.topotools.trim(network=pn, pores=h['disconnected_pores'])
+        pn.regenerate_models()
     
     def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
         r"""
