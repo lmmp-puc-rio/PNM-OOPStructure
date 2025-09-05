@@ -451,28 +451,28 @@ class DrainagePostProcessor(BasePostProcessor):
             non_wetting_phase = self.algorithm_manager.phases.get_non_wetting_phase()
             is_invading_nwp = (inv_phase_name == non_wetting_phase['name'])
 
-            if seq == 0:
-                invaded_pores = alg['pore.ic_invaded'].copy()
-                invaded_throats = alg['throat.ic_invaded'].copy()
-                invaded_pores_for_sat = invaded_pores
-            else:
-                invaded_pores = (alg['pore.invasion_sequence'] < seq)
-                invaded_throats = (alg['throat.invasion_sequence'] < seq)
-                invaded_pores_for_sat = invaded_pores | pn['pore.inlet']
+            ic_pores = alg['pore.ic_invaded'].copy()
+            ic_throats = alg['throat.ic_invaded'].copy()
+
+            invaded_pores_seq = alg['pore.invasion_sequence'] <= seq
+            invaded_throats_seq = alg['throat.invasion_sequence'] <= seq
+            
+            invaded_pores = invaded_pores_seq | ic_pores
+            invaded_throats = invaded_throats_seq | ic_throats
 
             if is_invading_nwp:
                 nwp['pore.occupancy'] = invaded_pores
                 nwp['throat.occupancy'] = invaded_throats
                 wp['pore.occupancy'] = ~invaded_pores
                 wp['throat.occupancy'] = ~invaded_throats
-                nw_sat_p = np.sum(network['pore.volume'][invaded_pores_for_sat])
+                nw_sat_p = np.sum(network['pore.volume'][invaded_pores])
                 nw_sat_t = np.sum(network['throat.volume'][invaded_throats])
             else:
                 wp['pore.occupancy'] = invaded_pores
                 wp['throat.occupancy'] = invaded_throats
                 nwp['pore.occupancy'] = ~invaded_pores
                 nwp['throat.occupancy'] = ~invaded_throats
-                nw_sat_p = np.sum(network['pore.volume'][~invaded_pores_for_sat])
+                nw_sat_p = np.sum(network['pore.volume'][~invaded_pores])
                 nw_sat_t = np.sum(network['throat.volume'][~invaded_throats])
                 
             total_volume = network['pore.volume'].sum() + network['throat.volume'].sum()
