@@ -398,15 +398,9 @@ class DrainagePostProcessor(BasePostProcessor):
         pseq = alg['pore.invasion_pressure']
         tseq = alg['throat.invasion_pressure']
         occupied = pseq > p
+        s, b = op._skgraph.simulations.site_percolation(conns=pn.conns, occupied_sites=occupied)
         
-        s, b = op._skgraph.simulations.site_percolation(
-            conns=pn.conns, occupied_sites=occupied
-        )
-        
-        both_pores_invaded = (
-            (pseq[alg.network.conns[:, 0]] <= p) & 
-            (pseq[alg.network.conns[:, 1]] <= p)
-        )
+        both_pores_invaded = ((pseq[alg.network.conns[:, 0]] <= p) & (pseq[alg.network.conns[:, 1]] <= p))
         same_cluster = s[alg.network.conns[:, 0]] == s[alg.network.conns[:, 1]]
         uninvaded_throat = tseq > p
         trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
@@ -498,21 +492,12 @@ class DrainagePostProcessor(BasePostProcessor):
 
         for i in relperm_sequence:
             sat = update_occupancy_and_get_saturation(pn, nwp_model, wp_model, algorithm, i)
-            Snwparr.append(sat * 100)  # Convert to percentage
+            Snwparr.append(sat * 100)
             
-            Rate_abs_nwp = Rate_calc(
-                pn, nwp_model, inlet, outlet, 'throat.hydraulic_conductance'
-            )
-            Rate_abs_wp = Rate_calc(
-                pn, wp_model, inlet, outlet, 'throat.hydraulic_conductance'
-            )
-            
-            Rate_enwp = Rate_calc(
-                pn, nwp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance'
-            )
-            Rate_ewp = Rate_calc(
-                pn, wp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance'
-            )
+            Rate_abs_nwp = Rate_calc(pn, nwp_model, inlet, outlet, 'throat.hydraulic_conductance')
+            Rate_abs_wp = Rate_calc(pn, wp_model, inlet, outlet, 'throat.hydraulic_conductance')
+            Rate_enwp = Rate_calc(pn, nwp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance')
+            Rate_ewp = Rate_calc(pn, wp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance')
             
             relperm_nwp.append(Rate_enwp / Rate_abs_nwp)
             relperm_wp.append(Rate_ewp / Rate_abs_wp)
