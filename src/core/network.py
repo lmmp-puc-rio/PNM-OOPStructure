@@ -36,6 +36,8 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
+        self.add_hydraulic_conductance_model()
+        self.network.regenerate_models()
 
     def _create_network(self):
         r"""
@@ -228,7 +230,6 @@ class Network:
         reference_phase = op.phase.Phase(network=pn)
         reference_phase.add_model_collection(op.models.collections.physics.basic)
         reference_phase['pore.viscosity'] = 1.0
-        reference_phase['throat.hydraulic_conductance'] = np.pi*R**4/(8*L)
         
         inlet_pores = pn.pores('inlet')
         outlet_pores = pn.pores('outlet')
@@ -246,6 +247,26 @@ class Network:
         K = Q * self.domain_length / self.domain_area
         
         return K
+
+    def add_hydraulic_conductance_model(self):
+        r"""
+        Add a simple Hagen-Poiseuille model for 'throat.hydraulic_conductance' on the network.
+        """
+        pn = self.network
+
+        def _hp_conductance(prop, length):
+            D = prop
+            L = pn[length]
+            return np.pi*(D/2.0)**4/(8.0*L)
+
+        pn.add_model(
+            propname='throat.hydraulic_conductance',
+            model=op.models.misc.generic_function,
+            func=_hp_conductance,
+            prop='throat.diameter',
+            length='throat.length',
+            regen_mode='deferred'
+        )
 
     def calculate_porosity(self):
         r"""
