@@ -6,6 +6,7 @@
         "prefix": "Image",
         "inlet": "inlets",
         "outlet": "outlets"
+
     },
     "phases": [
         {
@@ -43,5 +44,10 @@
             "phase": "water",
             "pressures": 200
         }
-    ]
+    ],
+    "pnextract_config": {
+        "N": 400, 
+        "ElementSize": 3e-6,
+        "Offset": 0
+    }
 }
