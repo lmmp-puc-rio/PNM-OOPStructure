@@ -15,6 +15,7 @@ class NetworkType(Enum):
     CUBIC       = "cubic"
     IMPORTED    = "imported"
     IMAGE       = "image"
+    TOMOGRAPHIC = "tomographic"
     
     @classmethod
     def _missing_(cls, value):
@@ -25,6 +26,8 @@ class NetworkType(Enum):
             return cls.IMPORTED
         if value in ("image", "images", "img", "image2d", "image3d"):
             return cls.IMAGE
+        if value in ("tomographic", "tom"):
+            return cls.TOMOGRAPHIC
         raise ValueError(f"NetworkType: {value}")
     
 class PhaseModel(Enum):
