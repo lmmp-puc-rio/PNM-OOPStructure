@@ -2,7 +2,6 @@ FROM python:3.10-slim
 
 # Configuring SSH
 RUN apt-get update && apt-get install -y \
-    python3-distutils \
     python3-setuptools \
     python3-venv \
     iproute2  \
