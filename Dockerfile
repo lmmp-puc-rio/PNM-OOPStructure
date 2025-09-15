@@ -1,8 +1,7 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Configuring SSH
 RUN apt-get update && apt-get install -y \
-    python3-distutils \
     python3-setuptools \
     python3-venv \
     iproute2  \
@@ -15,7 +14,7 @@ RUN apt-get update
 RUN apt-get install build-essential -y
 
 # Install git and any other dependencies
-RUN apt-get update && apt-get install -y git wget
+RUN apt-get update && apt-get install -y git wget libgomp1
 
 # Create a non-root user and set up the home directory
 ARG USERNAME=lmmp
@@ -37,7 +36,7 @@ WORKDIR /opt
 # RUN python3 -m venv openpnm_virtualenv
 
 # Install OpenPNM python package from github instead of pypi repository.
-RUN git clone https://github.com/PMEAL/OpenPNM
+RUN git clone https://github.com/PMEAL/OpenPNM 
 WORKDIR ./OpenPNM
 
 COPY ./patches/* .
