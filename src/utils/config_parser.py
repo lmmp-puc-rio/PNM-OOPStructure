@@ -248,7 +248,7 @@ class ConfigParser:
             network     = cls._build_network(raw["network"]),
             phases      = cls._build_phases(raw["phases"]),
             algorithm   = cls._build_algorithm(raw["algorithm"]),
-            pnextract_config   = cls._build_pnextractor(raw["pnextract_config"], cls._build_network(raw["network"]))
+            pnextract_config   = cls._build_pnextractor(raw["pnextract_config"])
         )
     
     @classmethod
@@ -307,7 +307,7 @@ class ConfigParser:
         return tuple(algorithms)
     
     @classmethod
-    def _build_pnextractor(cls, pnextractor_data: dict, network_data: dict):
+    def _build_pnextractor(cls, pnextractor_data: dict):
         r"""
         Gets the configurations for pnextractor use.
         """
