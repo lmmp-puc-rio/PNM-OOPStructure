@@ -44,6 +44,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
           push: ${{ github.event_name == 'push' }}
+          build-args: |
+            UID=1001
+            GID=1001
       - name: Push build cache
         if: github.event_name == 'push'
         uses: docker/build-push-action@v6
