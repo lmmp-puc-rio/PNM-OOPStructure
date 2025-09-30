@@ -202,18 +202,19 @@ class Network:
         r"""
         Decides weather the throat will follow a circular cross section or a triangular one.
         I am ignoring square section throats. Sq throats should be considered when G>=sqrt(3)/36 and G<0.079
-        We're assigning sqrt(3)/36<G<0.079 as G=qrt(3)/36 so we can treat them as triangle shaped
+        We're assigning G=sqrt(3)/36 to G:sqrt(3)/36<G<0.079  so we can treat them as triangle shaped
 
         https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
         https://doi.org/10.1103/PhysRevE.96.013312   Raeni et al. 2017
         """
         pn = self.network
-        circular_throats = pn["throat.shape_factor"] > 0.079
-        triangular_throats = pn["throat.shape_factor"] <  np.sqrt(3)/36
+        G = pn["throat.shape_factor"]
+        circular_throats = G > 0.079
+        triangular_throats = G <  np.sqrt(3)/36
         sq_throats = ~(circular_throats | triangular_throats)
 
-        G = pn["throat.shape_factor"]
         G[sq_throats] = np.sqrt(3)/36 * .99
+        pn["throat.shape_factor"] = G
         triangular_throats = G <=  np.sqrt(3)/36
 
         num_throats = pn["throat.shape_factor"].shape[0]
