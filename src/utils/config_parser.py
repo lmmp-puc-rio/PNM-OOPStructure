@@ -106,6 +106,7 @@ class NetworkConfig:
     seed:           int | None = None
     file:           str | None = None
     properties:     dict | None = None
+    cross_sec:      str | None = None
     
     def __post_init__(self):
         r"""
