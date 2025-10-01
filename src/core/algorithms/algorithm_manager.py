@@ -136,6 +136,12 @@ class AlgorithmManager:
                 # Update trapped states for next algorithms
                 pore_trapped = result['pore_trapped'].copy()
                 throat_trapped = result['throat_trapped'].copy()
+            if config.type == AlgorithmType.IMBIBITION:
+                self._capillary_pressure_imbibition()
+                result = algorithm.run(pore_trapped, throat_trapped)
+                # Update trapped states for next algorithms
+                pore_trapped = result['pore_trapped'].copy()
+                throat_trapped = result['throat_trapped'].copy()
             elif config.type == AlgorithmType.STOKES:
                 result = algorithm.run()
                 
