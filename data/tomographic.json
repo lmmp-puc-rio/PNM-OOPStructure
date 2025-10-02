@@ -6,7 +6,8 @@
         "prefix": "Image",
         "inlet": "inlets",
         "outlet": "outlets",
-        "cross_sec": "triang"
+        "cross_sec": "triang",
+        "fluid_type": "newt"
 
     },
     "phases": [
