@@ -101,6 +101,8 @@ class AlgorithmManager:
         """
         if config.type == AlgorithmType.DRAINAGE:
             return DrainageAlgorithm(self.network, phase_dict, config)
+        elif config.type == AlgorithmType.IMBIBITION:
+            return DrainageAlgorithm(self.network, phase_dict, config)
         elif config.type == AlgorithmType.STOKES:
             return StokesAlgorithm(
                 self.network, phase_dict, config, self.phases,
@@ -185,6 +187,8 @@ class AlgorithmManager:
         theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
         theta_r = np.radians(theta_r)
         theta_r_3 = np.tile(theta_r[:,np.newaxis], (1, 3))
+        print(pn)
+
         bi = pn["throat.corner_angles"]
 
 
