@@ -131,7 +131,7 @@ class Phases:
             model=model_mp_cond,
             propname='throat.conduit_hydraulic_conductance',
             throat_conductance='throat.hydraulic_conductance',
-            mode='medium',
+            mode='strict',
             regen_mode='deferred'
         )
     

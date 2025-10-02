@@ -398,15 +398,9 @@ class DrainagePostProcessor(BasePostProcessor):
         pseq = alg['pore.invasion_pressure']
         tseq = alg['throat.invasion_pressure']
         occupied = pseq > p
+        s, b = op._skgraph.simulations.site_percolation(conns=pn.conns, occupied_sites=occupied)
         
-        s, b = op._skgraph.simulations.site_percolation(
-            conns=pn.conns, occupied_sites=occupied
-        )
-        
-        both_pores_invaded = (
-            (pseq[alg.network.conns[:, 0]] <= p) & 
-            (pseq[alg.network.conns[:, 1]] <= p)
-        )
+        both_pores_invaded = ((pseq[alg.network.conns[:, 0]] <= p) & (pseq[alg.network.conns[:, 1]] <= p))
         same_cluster = s[alg.network.conns[:, 0]] == s[alg.network.conns[:, 1]]
         uninvaded_throat = tseq > p
         trap_condition = both_pores_invaded & same_cluster & uninvaded_throat
@@ -451,8 +445,14 @@ class DrainagePostProcessor(BasePostProcessor):
             non_wetting_phase = self.algorithm_manager.phases.get_non_wetting_phase()
             is_invading_nwp = (inv_phase_name == non_wetting_phase['name'])
 
-            invaded_pores = alg['pore.invasion_sequence'] < seq
-            invaded_throats = alg['throat.invasion_sequence'] < seq
+            ic_pores = alg['pore.ic_invaded'].copy()
+            ic_throats = alg['throat.ic_invaded'].copy()
+
+            invaded_pores_seq = alg['pore.invasion_sequence'] <= seq
+            invaded_throats_seq = alg['throat.invasion_sequence'] <= seq
+            
+            invaded_pores = invaded_pores_seq | ic_pores
+            invaded_throats = invaded_throats_seq | ic_throats
 
             if is_invading_nwp:
                 nwp['pore.occupancy'] = invaded_pores
@@ -483,10 +483,7 @@ class DrainagePostProcessor(BasePostProcessor):
             val = np.abs(St_p.rate(pores=inlet, mode='group'))
             return val
 
-        tmask = (
-            np.isfinite(algorithm['throat.invasion_sequence']) & 
-            (algorithm['throat.invasion_sequence'] > 0)
-        )
+        tmask = np.isfinite(algorithm['throat.invasion_sequence'])
         max_seq = np.max(algorithm['throat.invasion_sequence'][tmask])
         min_seq = np.min(algorithm['throat.invasion_sequence'][tmask])
         relperm_sequence = np.linspace(min_seq, max_seq, Snwp_num).astype(int)
@@ -495,21 +492,12 @@ class DrainagePostProcessor(BasePostProcessor):
 
         for i in relperm_sequence:
             sat = update_occupancy_and_get_saturation(pn, nwp_model, wp_model, algorithm, i)
-            Snwparr.append(sat * 100)  # Convert to percentage
+            Snwparr.append(sat * 100)
             
-            Rate_abs_nwp = Rate_calc(
-                pn, nwp_model, inlet, outlet, 'throat.hydraulic_conductance'
-            )
-            Rate_abs_wp = Rate_calc(
-                pn, wp_model, inlet, outlet, 'throat.hydraulic_conductance'
-            )
-            
-            Rate_enwp = Rate_calc(
-                pn, nwp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance'
-            )
-            Rate_ewp = Rate_calc(
-                pn, wp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance'
-            )
+            Rate_abs_nwp = Rate_calc(pn, nwp_model, inlet, outlet, 'throat.hydraulic_conductance')
+            Rate_abs_wp = Rate_calc(pn, wp_model, inlet, outlet, 'throat.hydraulic_conductance')
+            Rate_enwp = Rate_calc(pn, nwp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance')
+            Rate_ewp = Rate_calc(pn, wp_model, inlet, outlet, 'throat.conduit_hydraulic_conductance')
             
             relperm_nwp.append(Rate_enwp / Rate_abs_nwp)
             relperm_wp.append(Rate_ewp / Rate_abs_wp)
