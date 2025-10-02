@@ -80,6 +80,22 @@ class CrossSecType(Enum):
         if value in ("triangular", "triang"):
             return cls.TRIANGULAR
         raise ValueError(f"AlgorithmType: {value}")
+    
+class FluidType(Enum):
+    r"""
+    Enum for supported algorithm types.
+    """
+    NEWT    = "newtonian"
+    NONNEWT  = "nonnewtonian"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("newtonian", "newt"):
+            return cls.NEWT
+        if value in ("nonnewtonian", "nonnewt"):
+            return cls.NONNEWT
+        raise ValueError(f"AlgorithmType: {value}")
 
 @dataclass
 class NetworkConfig:
@@ -113,6 +129,7 @@ class NetworkConfig:
     """
     type:           NetworkType
     cross_sec:      CrossSecType
+    fluid_type:     FluidType
     project_name:   str
     inlet:          tuple[str, ...]
     outlet:         tuple[str, ...] | None = None
@@ -278,6 +295,7 @@ class ConfigParser:
         return NetworkConfig(
             type            = NetworkType(network_data.get("type")),
             cross_sec       = CrossSecType(network_data.get("cross_sec")),
+            fluid_type       = FluidType(network_data.get("fluid_type")),
             project_name    = network_data.get("project_name"),
             inlet           = network_data.get("inlet"),
             outlet          = network_data.get("outlet"),
