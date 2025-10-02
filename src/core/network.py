@@ -3,6 +3,7 @@ import numpy as np
 import openpnm as op
 import skimage.io as sc
 import porespy as ps
+import matplotlib.pyplot as plt
 
 class Network:
     r"""
@@ -215,6 +216,36 @@ class Network:
             
         return info
     
+    def redefine_throat_radius(self, mean=1.0, mode='norm', plot_hist=False):
+        r"""
+        Redefine throat radius.
+
+        Arguments:
+        ----------
+        mean : float
+            It is the value for the mean value of the adjusted throat radius distribution.
+
+        mode: str
+            Method applied to adjust the distribution
+            'norm': normalizes the distribution by its mean value and then multiply it for the value set to be the new mean.
+
+        plot_hist: bool
+            If True plots the throat radius distribution histogram.    
+
+        """
+        R = self.network['throat.diameter']/2
+        if mode == 'norm':
+            R = R/np.mean(R)*(mean)
+            self.network['throat.diameter'] = 2*R
+
+        if plot_hist:
+            plt.hist(R/(10**-6))
+            plt.title(r"after adjustment")
+            plt.xlabel(r"radius [$\mu$ m]")
+            plt.ylabel(r"frequency")
+            plt.savefig("hist_throat_radius.png")
+            plt.close()
+    
     def calculate_permeability(self):
         r"""
         Calculate permeability.
@@ -245,6 +276,7 @@ class Network:
         
         # Use pre-calculated domain properties
         K = Q * self.domain_length / self.domain_area
+        print(f'K = {K/10**-12/10**-3} mD')
         
         return K
 

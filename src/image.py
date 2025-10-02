@@ -11,9 +11,10 @@ json_file = 'data/image.json'
 
 cfg = ConfigParser.from_file(json_file)
 pn = Network(config=cfg)
+pn.redefine_throat_radius(mean=5*10**-5)
 
-new_inlet_pores = [0,1,3,7,11,14,23,29,36,38,45,2,4,10,13,26,37,734,733,732]
-pn.set_inlet_outlet_pores(inlet_pores=new_inlet_pores)
+pn.calculate_permeability()
+
 phases = Phases(network=pn, config=cfg)
 
 manager = AlgorithmManager(pn, phases, cfg)
