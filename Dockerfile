@@ -39,11 +39,6 @@ WORKDIR /opt
 RUN git clone https://github.com/PMEAL/OpenPNM 
 WORKDIR ./OpenPNM
 
-COPY ./patches/* .
-
-# Apply patches to the OpenPNM repository
-RUN git apply --ignore-space-change --ignore-whitespace --reject --whitespace=fix *.patch
-
 # Install package in editable mode, i.e., 
 # allows you to modify the source code of the package, 
 # and the changes will be immediately reflected without needing to reinstall the package. 

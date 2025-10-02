@@ -15,6 +15,7 @@ class NetworkType(Enum):
     CUBIC       = "cubic"
     IMPORTED    = "imported"
     IMAGE       = "image"
+    TOMOGRAPHIC = "tomographic"
     
     @classmethod
     def _missing_(cls, value):
@@ -25,6 +26,8 @@ class NetworkType(Enum):
             return cls.IMPORTED
         if value in ("image", "images", "img", "image2d", "image3d"):
             return cls.IMAGE
+        if value in ("tomographic", "tom"):
+            return cls.TOMOGRAPHIC
         raise ValueError(f"NetworkType: {value}")
     
 class PhaseModel(Enum):
@@ -190,6 +193,18 @@ class AlgorithmConfig:
                                    "initial_pressure", "final_pressure") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Stokes Algorithm missing parameters: {', '.join(missing)}")
+            
+@dataclass
+class pnextractConfig:
+    r"""
+
+    N :          int
+    ElementSize: float
+    Offset:      float
+    """
+    N :          int
+    ElementSize: float
+    Offset:      float
 
 @dataclass
 class ProjectConfig:
@@ -199,6 +214,7 @@ class ProjectConfig:
     network:    NetworkConfig
     phases:     tuple[PhaseConfig, ...]
     algorithm:  tuple[AlgorithmConfig, ...]
+    pnextract_config:    pnextractConfig
     
 class ConfigParser:
     r"""
@@ -219,10 +235,19 @@ class ConfigParser:
         r"""
         Builds the full ProjectConfig from the raw JSON dict.
         """
+        if not (cls._build_network(raw["network"]).type == NetworkType.TOMOGRAPHIC):
+            return ProjectConfig(
+                network     = cls._build_network(raw["network"]),
+                phases      = cls._build_phases(raw["phases"]),
+                algorithm   = cls._build_algorithm(raw["algorithm"]),
+                pnextract_config   = None
+            )
+    
         return ProjectConfig(
             network     = cls._build_network(raw["network"]),
             phases      = cls._build_phases(raw["phases"]),
-            algorithm   = cls._build_algorithm(raw["algorithm"])
+            algorithm   = cls._build_algorithm(raw["algorithm"]),
+            pnextract_config   = cls._build_pnextractor(raw["pnextract_config"])
         )
     
     @classmethod
@@ -279,3 +304,14 @@ class ConfigParser:
                 )
             )
         return tuple(algorithms)
+    
+    @classmethod
+    def _build_pnextractor(cls, pnextractor_data: dict):
+        r"""
+        Gets the configurations for pnextractor use.
+        """
+        return pnextractConfig(
+            N           = pnextractor_data.get("N"),
+            ElementSize = pnextractor_data.get("ElementSize"),
+            Offset      = pnextractor_data.get("Offset"),
+        )
