@@ -238,7 +238,7 @@ class AlgorithmManager:
 
         Pc = self._compute_capillary_pressure(theta_r, D)
 
-        self.phases.get_wetting_phase()["model"].add_model(
+        self.phases.get_non_wetting_phase()["model"].add_model(
                     propname='throat.entry_pressure',
                     model=op.models.misc.constant,
                     value=Pc
@@ -255,7 +255,7 @@ class AlgorithmManager:
         # AM -- arc menisci
         theta_a = self.phases.get_wetting_phase()["model"]["throat.advancing_contact_angle"]
         theta_a = np.radians(theta_a)
-        theta_a = np.pi-theta_a
+        theta_a = theta_a
 
         D, _ = self._computes_D_S(theta_a)
 
