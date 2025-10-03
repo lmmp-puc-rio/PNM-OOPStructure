@@ -157,6 +157,15 @@ class Phases:
                 visc='pore.viscosity', 
                 regen_mode='deferred'
             )
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance_wp',
+                model=op.models.misc.generic_function,
+                func=_triang_conductance,
+                prop='throat.shape_factor',
+                area='throat.cross_sectional_area',
+                visc='pore.viscosity', 
+                regen_mode='deferred'
+            )
         elif self.config_general.cross_sec == CrossSecType.CIRCULAR: 
             phase_model.add_model(
                 propname='throat.hydraulic_conductance',
