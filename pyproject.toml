@@ -1,0 +1,7 @@
+[project]
+name = "pnm-oopstructure"
+version = "0.0.0"
+description = "PNM-OOPStructure"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = []
