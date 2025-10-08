@@ -2,10 +2,10 @@
     "network": {
         "type": "image",
         "project_name": "Saphire",
-        "file": "/home/stelio/OpenPNM/data/images/EOR-D82 - Saphire Device/Combined Stacks_2_Cutted_ChanneledInlet.tif",
+        "file": "data/images/EOR-D82 - Saphire Device/Combined Stacks_2_Cutted_ChanneledInlet.tif",
         "properties":{
-            "voxel_size": 1,
-            "r_max": 50
+            "voxel_size": 0.00221e-3,
+            "r_max": 20
         },
         "inlet": "inlets",
         "outlet": "outlets"
