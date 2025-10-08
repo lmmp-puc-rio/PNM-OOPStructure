@@ -48,7 +48,7 @@ RELATIVE_PERMEABILITY_LAYOUT = {
     "figsize": (6, 6),
     "title": "Relative Permeability",
     "title_fontsize": 16,
-    "xlabel": r"Snwp [%]",
+    "xlabel": r"Swp [%]",
     "ylabel": r"Kr",
     "grid": True,
     "sci_notation": False,
