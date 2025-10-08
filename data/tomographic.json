@@ -1,0 +1,115 @@
+{
+
+    "network": {
+
+        "type": "tomographic",
+
+        "project_name": "tomographic_validation",
+
+        "path": "data/Berea_tomographic",
+
+        "prefix": "Image",
+
+        "inlet": "inlets",
+
+        "outlet": "outlets",
+
+        "cross_sec": "circ",
+
+        "fluid_type": "newt"
+
+  
+
+    },
+
+    "phases": [
+
+        {
+
+            "model": "water",
+
+            "name": "water",
+
+            "color": "#0000ff",
+
+            "properties": {
+
+                "pore.viscosity": 1e-3,
+
+                "pore.surface_tension": 0.030,
+
+                "pore.contact_angle": 30.0,
+
+                "throat.diffusivity": 1e-8,
+
+                "throat.receding_contact_angle": 1,
+
+                "throat.advancing_contact_angle": 60
+
+            }
+
+        },
+
+        {
+
+            "model": "water",
+
+            "name": "oil",
+
+            "color": "#ff0000",
+
+            "properties": {
+
+                "pore.viscosity": 1.41e-3,
+
+                "pore.surface_tension": 0.030,
+
+                "pore.contact_angle": 150.0,
+
+                "throat.diffusivity": 1e-8
+
+            }
+
+        }
+
+    ],
+
+    "algorithm": [
+
+        {
+
+            "type": "drainage",
+
+            "name": "drainageSimulation",
+
+            "phase": "oil",
+
+            "pressures": 50000
+
+        },
+
+        {
+
+            "type": "imbibition",
+
+            "name": "imbibitionSimulation",
+
+            "phase": "water",
+
+            "pressures": 50000
+
+        }
+
+    ],
+
+    "pnextract_config": {
+
+        "N": 400,
+
+        "ElementSize": 3e-6,
+
+        "Offset": 0
+
+    }
+
+}
