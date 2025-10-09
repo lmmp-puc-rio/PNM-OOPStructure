@@ -71,6 +71,7 @@ class CrossSecType(Enum):
     """
     CIRCULAR    = "circular"
     TRIANGULAR  = "triangular"
+    HYPERBOLOID  = "hyperboloid"
     
     @classmethod
     def _missing_(cls, value):
@@ -79,6 +80,8 @@ class CrossSecType(Enum):
             return cls.CIRCULAR
         if value in ("triangular", "triang"):
             return cls.TRIANGULAR
+        if value in ("hyperboloid", "hyper"):
+            return cls.HYPERBOLOID
         raise ValueError(f"AlgorithmType: {value}")
     
 class FluidType(Enum):
@@ -350,7 +353,7 @@ class ConfigParser:
         Gets the configurations for pnextractor use.
         """
         return pnextractConfig(
-            N           = pnextractor_data.get("N"),
-            ElementSize = pnextractor_data.get("ElementSize"),
-            Offset      = pnextractor_data.get("Offset"),
+            N           = pnextractor_data.get["N"],
+            ElementSize = pnextractor_data.get["ElementSize"],
+            Offset      = pnextractor_data.get["Offset"],
         )
