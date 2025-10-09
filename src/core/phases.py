@@ -231,7 +231,7 @@ class Phases:
         
     def _computes_D_S(self, theta_r):
         r"""
-        Computes middle variables for cappilary pressure and effective area
+        Computes middle variables for capillary pressure and effective area
         """
         pn = self.network.network
         G = pn["throat.shape_factor"]
