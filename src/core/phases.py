@@ -34,8 +34,7 @@ class Phases:
                     config=dict_phase
                 )
             )
-        if self.config_general.cross_sec == ThroatType.TRIANGULAR:
-            self._update_hydraulic_conductance_nwp()
+        self._define_hydraulic_conductance()
 
     def _create_phase_model(self, raw: dict):
         r"""
@@ -72,7 +71,11 @@ class Phases:
             else:
                 raise ValueError(f"Unknown property prefix in {prop}")
         phase_model['pore.pressure'] = (np.random.uniform(0, 1, size=phase_model.Np)) * min(self.network.network['throat.diameter'])
-        self.add_hydraulic_conductance_model(phase_model)
+        isWettingPhase = phase_model['pore.contact_angle'][0] < 90
+        if self.config_general.cross_sec == ThroatType.HYPERBOLOID:
+            if not(isWettingPhase):
+                phase_model['throat.saturation'] = np.zeros(phase_model.Nt)
+
         phase_model.regenerate_models()
         return phase_model
 
@@ -122,7 +125,19 @@ class Phases:
                 return phase
         return None
     
-    
+    def _define_hydraulic_conductance(self):
+        wp = self.get_wetting_phase()["model"]
+        nwp = self.get_non_wetting_phase()["model"]
+
+        self.add_hydraulic_conductance_model(wp)
+        self.add_hydraulic_conductance_model(nwp)
+
+        if self.config_general.cross_sec == ThroatType.TRIANGULAR:
+            self._update_hydraulic_conductance_nwp()
+
+        wp.regenerate_models()
+        nwp.regenerate_models()
+        
     
     def add_hydraulic_conductance_model(self, phase_model):
         r"""
