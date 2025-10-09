@@ -41,6 +41,8 @@ class Network:
         self._clean_disconnected_pores()
         if self.config.cross_sec == ThroatType.TRIANGULAR:
             self._throat_geometry_and_triangle_angles()
+        elif self.config.cross_sec == ThroatType.HYPERBOLOID:
+            self._throat_equivalent_radius_hyper()
         self.network.regenerate_models()
 
     def _create_network(self):
@@ -197,6 +199,27 @@ class Network:
         h = op.utils.check_network_health(pn)
         op.topotools.trim(network=pn, pores=h['disconnected_pores'])
         pn.regenerate_models()
+
+    def _throat_equivalent_radius_hyper(self):
+        r"""
+        Computes the equivalent radius for the hyperboloid throat model
+        """
+        pn = self.network
+
+        r_max = pn["pore.radius"][pn["throat.conns"]]
+        r_max = np.max(r_max, axis=1)
+        r_min = pn["throat.radius"]
+
+        r = 2 * r_min**3 * r_max**2 * np.sqrt(r_max**2 - r_min**2)
+        r = r / ( r_min * np.sqrt(r_max**2 - r_min**2) + r_max**2 * np.arctan( np.sqrt( (r_max**2 - r_min**2) / r_min**2 ) )  )
+        r = r ** (1/4)
+
+        # the following lines treats cases in which r_min>r_max
+        ind = np.where(np.isnan(r))[0]
+        r[ind] = r_min[ind]
+
+        pn["throat.equivalent_radius"] = r
+
 
     def _throat_geometry_and_triangle_angles(self):
         r"""
