@@ -35,7 +35,7 @@ class Phases:
                 )
             )
         if self.config_general.cross_sec == ThroatType.TRIANGULAR:
-            self._update_hydraulic_conductance_nwp(dict_phase)
+            self._update_hydraulic_conductance_nwp()
 
     def _create_phase_model(self, raw: dict):
         r"""
@@ -228,7 +228,7 @@ class Phases:
 
         return A_eff
 
-    def _update_hydraulic_conductance_nwp(self, dict_phases):
+    def _update_hydraulic_conductance_nwp(self):
         r"""
         Updates the hydraulic conductance of the non wetting phase by multiplying it by the effective throat area 
         """
