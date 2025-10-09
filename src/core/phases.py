@@ -1,5 +1,5 @@
 from utils.config_parser import PhaseModel
-from utils.config_parser import NetworkType, CrossSecType, FluidType
+from utils.config_parser import NetworkType, ThroatType, FluidType
 import openpnm as op
 import numpy as np
 class Phases:
@@ -34,7 +34,7 @@ class Phases:
                     config=dict_phase
                 )
             )
-        if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+        if self.config_general.cross_sec == ThroatType.TRIANGULAR:
             self._update_hydraulic_conductance_nwp(dict_phase)
 
     def _create_phase_model(self, raw: dict):
@@ -149,7 +149,7 @@ class Phases:
 
             return k * A**2 * G / mu
         
-        if self.config_general.cross_sec == CrossSecType.TRIANGULAR: 
+        if self.config_general.cross_sec == ThroatType.TRIANGULAR: 
             phase_model.add_model(
                 propname='throat.hydraulic_conductance',
                 model=op.models.misc.generic_function,
@@ -159,7 +159,7 @@ class Phases:
                 visc='pore.viscosity', 
                 regen_mode='deferred'
             )
-        elif self.config_general.cross_sec == CrossSecType.CIRCULAR: 
+        elif self.config_general.cross_sec == ThroatType.CIRCULAR: 
             phase_model.add_model(
                 propname='throat.hydraulic_conductance',
                 model=op.models.misc.generic_function,

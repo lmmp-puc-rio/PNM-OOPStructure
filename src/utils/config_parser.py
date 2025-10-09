@@ -65,7 +65,7 @@ class AlgorithmType(Enum):
             return cls.STOKES
         raise ValueError(f"AlgorithmType: {value}")
     
-class CrossSecType(Enum):
+class ThroatType(Enum):
     r"""
     Enum for supported algorithm types.
     """
@@ -131,7 +131,7 @@ class NetworkConfig:
         Additional properties for the network (e.g., voxel size, accuracy).
     """
     type:           NetworkType
-    cross_sec:      CrossSecType
+    cross_sec:      ThroatType
     fluid_type:     FluidType
     project_name:   str
     inlet:          tuple[str, ...]
@@ -297,7 +297,7 @@ class ConfigParser:
         """
         return NetworkConfig(
             type            = NetworkType(network_data.get("type")),
-            cross_sec       = CrossSecType(network_data.get("cross_sec")),
+            cross_sec       = ThroatType(network_data.get("cross_sec")),
             fluid_type       = FluidType(network_data.get("fluid_type")),
             project_name    = network_data.get("project_name"),
             inlet           = network_data.get("inlet"),
@@ -353,7 +353,7 @@ class ConfigParser:
         Gets the configurations for pnextractor use.
         """
         return pnextractConfig(
-            N           = pnextractor_data.get["N"],
-            ElementSize = pnextractor_data.get["ElementSize"],
-            Offset      = pnextractor_data.get["Offset"],
+            N           = pnextractor_data.get("N"),
+            ElementSize = pnextractor_data.get("ElementSize"),
+            Offset      = pnextractor_data.get("Offset"),
         )

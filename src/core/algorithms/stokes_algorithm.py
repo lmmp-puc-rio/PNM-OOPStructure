@@ -8,7 +8,7 @@ viscous flow simulations with support for non-Newtonian fluid behavior.
 import numpy as np
 import openpnm as op
 from .base_algorithm import BaseAlgorithm
-from utils.config_parser import NetworkType, CrossSecType, FluidType
+from utils.config_parser import NetworkType, ThroatType, FluidType
 
 class StokesAlgorithm(BaseAlgorithm):
     r"""

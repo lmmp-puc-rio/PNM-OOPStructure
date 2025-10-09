@@ -1,4 +1,4 @@
-from utils.config_parser import NetworkType, CrossSecType, FluidType
+from utils.config_parser import NetworkType, ThroatType, FluidType
 import numpy as np
 import openpnm as op
 import skimage.io as sc
@@ -39,7 +39,7 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
-        if self.config.cross_sec == CrossSecType.TRIANGULAR:
+        if self.config.cross_sec == ThroatType.TRIANGULAR:
             self._throat_geometry_and_triangle_angles()
         self.network.regenerate_models()
 
