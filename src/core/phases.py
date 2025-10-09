@@ -149,6 +149,30 @@ class Phases:
 
             return k * A**2 * G / mu
         
+        if self.config_general.cross_sec == ThroatType.HYPERBOLOID:
+            pn = self.network.network
+            L = pn['throat.total_length']
+            r = pn['throat.equivalent_radius']
+            mu_wp = self.get_wetting_phase()["model"]['pore.viscosity'][0]
+            s_g = self.get_non_wetting_phase()["model"]['throat.saturation']
+        
+        def _hyperboloid_conductance_wp(prop):
+            mu_l = prop[0]
+
+            g = (np.pi / (8 * mu_l * L)) * (r**2 - s_g * r**2)**2 
+
+            return g
+
+        def _hyperboloid_conductance_nwp(prop):
+            mu_g = prop[0]
+            mu_l = mu_wp
+
+            g =     (np.pi / (8 * mu_g * L)) * (s_g * r**2)**2 
+            g = g + (np.pi / (4 * mu_l * L)) * (r**2 - s_g * r**2) * (s_g * r**2)
+
+            return g
+
+        
         if self.config_general.cross_sec == ThroatType.TRIANGULAR: 
             phase_model.add_model(
                 propname='throat.hydraulic_conductance',
@@ -169,6 +193,24 @@ class Phases:
                 visc='pore.viscosity', 
                 regen_mode='deferred'
             )
+        elif self.config_general.cross_sec == ThroatType.HYPERBOLOID: 
+            isWettingPhase = phase_model['pore.contact_angle'][0] < 90
+            if isWettingPhase: # wetting phase
+                phase_model.add_model(
+                    propname='throat.hydraulic_conductance',
+                    model=op.models.misc.generic_function,
+                    func=_hyperboloid_conductance_wp,
+                    prop='pore.viscosity',
+                    regen_mode='deferred'
+                )
+            else: # non wetting phase
+                phase_model.add_model(
+                    propname='throat.hydraulic_conductance',
+                    model=op.models.misc.generic_function,
+                    func=_hyperboloid_conductance_nwp,
+                    prop='pore.viscosity',
+                    regen_mode='deferred'
+                )
         else:
             raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
         
