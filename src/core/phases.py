@@ -157,7 +157,7 @@ class Phases:
                 prop='throat.shape_factor',
                 area='throat.cross_sectional_area',
                 visc='pore.viscosity', 
-                regen_mode='deferred'
+                regen_mode='normal'
             )
         elif self.config_general.cross_sec == CrossSecType.CIRCULAR: 
             phase_model.add_model(
@@ -167,7 +167,7 @@ class Phases:
                 prop='throat.diameter',
                 length='throat.length',
                 visc='pore.viscosity', 
-                regen_mode='deferred'
+                regen_mode='normal'
             )
         else:
             raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
