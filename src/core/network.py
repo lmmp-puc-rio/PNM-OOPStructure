@@ -1,8 +1,9 @@
-from utils.config_parser import NetworkType
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 import numpy as np
 import openpnm as op
 import skimage.io as sc
 import porespy as ps
+import os
 import matplotlib.pyplot as plt
 
 class Network:
@@ -27,6 +28,8 @@ class Network:
     """
     def __init__(self, config):
         self.config = config.network
+        if self.config.type == NetworkType.TOMOGRAPHIC:
+            self.pnextract_config = config.pnextract_config
         self.project_name = getattr(self.config, 'project_name', 'project')
         np.random.seed(self.config.seed)
         self.network = self._create_network()
@@ -37,7 +40,8 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
-        self.add_hydraulic_conductance_model()
+        if self.config.cross_sec == CrossSecType.TRIANGULAR:
+            self._throat_geometry_and_triangle_angles()
         self.network.regenerate_models()
 
     def _create_network(self):
@@ -54,6 +58,10 @@ class Network:
             return self._create_imported()
         elif self.config.type == NetworkType.IMAGE:
             return self._create_image()
+        elif self.config.type == NetworkType.TOMOGRAPHIC:
+            self._update_mhd_file()
+            self._generate_network_to_be_imported()
+            return self._create_imported()
         else:
             raise ValueError(f"NetworkType: {self.config.type}")
 
@@ -111,6 +119,34 @@ class Network:
         pn.regenerate_models()
         return pn
     
+    def _generate_network_to_be_imported(self):
+        r"""
+        Uses pnextract to generate a Statoil format pore network. https://github.com/ImperialCollegeLondon/pnextract
+        
+        The pnextract binary executable file is in the utils folder 
+        -------
+        """
+        os.system("src/utils/pnextract " + os.path.join(self.config.path, "Image.mhd")) 
+        os.system("mv Image_* " + self.config.path)  
+
+
+    def _update_mhd_file(self):
+        lines = []
+        filepath = os.path.join(self.config.path, "Image.mhd")
+        with open(filepath, "r") as f:
+            for line in f:
+                if line.startswith("DimSize"):
+                    line = f"DimSize =\t{self.pnextract_config.N}\t{self.pnextract_config.N}\t{self.pnextract_config.N}\n"
+                elif line.startswith("ElementSize"):
+                    line = f"ElementSize =\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\n"
+                elif line.startswith("Offset"):
+                    line = f"Offset =\t{self.pnextract_config.Offset}\t{self.pnextract_config.Offset}\t{self.pnextract_config.Offset}\n"
+                lines.append(line)
+
+        with open(filepath, "w") as f:
+            f.writelines(lines)
+
+ 
     def _setup_boundary_conditions(self):
         r"""
         Set up inlet and outlet boundary condition labels on the network.
@@ -162,7 +198,42 @@ class Network:
         h = op.utils.check_network_health(pn)
         op.topotools.trim(network=pn, pores=h['disconnected_pores'])
         pn.regenerate_models()
-    
+
+    def _throat_geometry_and_triangle_angles(self):
+        r"""
+        Decides weather the throat will follow a circular cross section or a triangular one.
+        I am ignoring square section throats. Sq throats should be considered when G>=sqrt(3)/36 and G<0.079
+        We're assigning G=sqrt(3)/36 to G:sqrt(3)/36<G<0.079  so we can treat them as triangle shaped
+
+        https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
+        https://doi.org/10.1103/PhysRevE.96.013312   Raeni et al. 2017
+        """
+        pn = self.network
+        G = pn["throat.shape_factor"]
+        circular_throats = G > 0.079
+        triangular_throats = G <  np.sqrt(3)/36
+        sq_throats = ~(circular_throats | triangular_throats)
+
+        G[sq_throats] = np.sqrt(3)/36 * .99
+        pn["throat.shape_factor"] = G
+        triangular_throats = G <=  np.sqrt(3)/36
+
+        num_throats = pn["throat.shape_factor"].shape[0]
+        num_triangular = np.where(triangular_throats)[0].shape[0]
+
+        pn["throat.corner_angles"] = np.zeros((num_throats, 3))
+        b2_min = np.arctan( (2/np.sqrt(3)) * np.cos( np.arccos(-12*np.sqrt(3)*G[triangular_throats])/3 + (4*np.pi)/3 ) )
+        b2_max = np.arctan( (2/np.sqrt(3)) * np.cos( np.arccos(-12*np.sqrt(3)*G[triangular_throats])/3 ) )
+        b2 = np.random.rand(num_triangular) * (b2_max - b2_min) + b2_min
+
+        b1 = -1/2*b2 + 1/2*np.arcsin( ( np.tan(b2) + 4*G[triangular_throats] )/( np.tan(b2) - 4*G[triangular_throats] )*np.sin(b2) )
+        b3 = np.pi/2 - b1 - b2
+
+        pn["throat.corner_angles"][triangular_throats, 0] = b1
+        pn["throat.corner_angles"][triangular_throats, 1] = b2
+        pn["throat.corner_angles"][triangular_throats, 2] = b3
+
+
     def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
         r"""
         Set inlet and outlet pores using specific pore numbers.
@@ -279,26 +350,6 @@ class Network:
         print(f'K = {K/10**-12/10**-3} mD')
         
         return K
-
-    def add_hydraulic_conductance_model(self):
-        r"""
-        Add a simple Hagen-Poiseuille model for 'throat.hydraulic_conductance' on the network.
-        """
-        pn = self.network
-
-        def _hp_conductance(prop, length):
-            D = prop
-            L = pn[length]
-            return np.pi*(D/2.0)**4/(8.0*L)
-
-        pn.add_model(
-            propname='throat.hydraulic_conductance',
-            model=op.models.misc.generic_function,
-            func=_hp_conductance,
-            prop='throat.diameter',
-            length='throat.length',
-            regen_mode='deferred'
-        )
 
     def calculate_porosity(self):
         r"""
