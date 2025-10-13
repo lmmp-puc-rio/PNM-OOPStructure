@@ -131,15 +131,18 @@ class DrainageAlgorithm(BaseAlgorithm):
         pressures : ndarray
             Array of pressures spanning from minimum to maximum entry pressure
         """
-        phase_model = self.phase['model']
-        p_max = phase_model['throat.entry_pressure'].max()
-        p_min = phase_model['throat.entry_pressure'].min()
-        samples = self.config.pressures
+        # phase_model = self.phase['model']
+        # p_max = phase_model['throat.entry_pressure'].max()
+        # p_min = phase_model['throat.entry_pressure'].min()
+        # samples = self.config.pressures
         
-        # x = np.linspace(0, 1, samples)
-        # pressures = p_min * (p_max / p_min) ** x
-        pressures = np.logspace(np.log10(p_min/2), np.log10(p_max*2), samples)
-        
+        # # x = np.linspace(0, 1, samples)
+        # # pressures = p_min * (p_max / p_min) ** x
+        # pressures = np.logspace(np.log10(p_min/2), np.log10(p_max*2), samples)
+
+        pressures = self.phase['model']['throat.entry_pressure']
+        pressures = np.unique(pressures)
+
         return pressures
         
     def pc_curve(self, pressures=None):
