@@ -136,8 +136,9 @@ class DrainageAlgorithm(BaseAlgorithm):
         p_min = phase_model['throat.entry_pressure'].min()
         samples = self.config.pressures
         
-        x = np.linspace(0, 1, samples)
-        pressures = p_min * (p_max / p_min) ** x
+        # x = np.linspace(0, 1, samples)
+        # pressures = p_min * (p_max / p_min) ** x
+        pressures = np.logspace(np.log10(p_min/2), np.log10(p_max*2), samples)
         
         return pressures
         
