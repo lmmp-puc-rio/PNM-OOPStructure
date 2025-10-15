@@ -75,6 +75,7 @@ class Phases:
         if self.config_general.cross_sec == ThroatType.HYPERBOLOID:
             # if not(isWettingPhase):
             phase_model['throat.saturation'] = np.ones(phase_model.Nt)
+            phase_model['throat.saturation'] = self.hyperboloid_capillary_pressure()
 
         phase_model.regenerate_models()
         return phase_model
@@ -261,20 +262,20 @@ class Phases:
         elif self.config_general.cross_sec == ThroatType.HYPERBOLOID: 
             # isWettingPhase = phase_model['pore.contact_angle'][0] < 90
             # if isWettingPhase: # wetting phase
-                # phase_model.add_model(
-                #     propname='throat.hydraulic_conductance',
-                #     model=op.models.misc.generic_function,
-                #     func=_hyperboloid_conductance_wp,
-                #     prop='pore.viscosity',
-                #     regen_mode='deferred'
-                # )
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance_liq',
+                model=op.models.misc.generic_function,
+                func=_hyperboloid_conductance_wp,
+                prop='pore.viscosity',
+                regen_mode='normal'
+            )
             # else: # non wetting phase
             phase_model.add_model(
-                propname='throat.hydraulic_conductance',
+                propname='throat.hydraulic_conductance_gas',
                 model=op.models.misc.generic_function,
                 func=_hyperboloid_conductance_nwp,
                 prop='pore.viscosity',
-                regen_mode='deferred'
+                regen_mode='normal'
             )
         else:
             raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
