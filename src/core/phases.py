@@ -125,6 +125,58 @@ class Phases:
                 return phase
         return None
     
+    def hyperboloid_capillary_pressure(self):
+
+        pn = self.network.network
+        L = pn['throat.total_length']
+        r = pn['throat.equivalent_radius']
+        s_g = self.get_non_wetting_phase()["model"]['throat.saturation']
+        r_max = pn["throat.r_max"] 
+        r_min = pn["throat.r_min"] 
+        a_coef_hyper = r_min**2
+        b_coef_hyper = ((2/L)**2) * (r_max**2 - r_min**2)
+        V_cap = 2*np.pi * (a_coef_hyper * L/2 + (b_coef_hyper/3) * (L/2)**3)
+        sigma = self.get_non_wetting_phase()["model"]['pore.sigma']
+
+
+        isGas = s_g == 1
+        isMostGas = (s_g < 1) & (s_g > 0.5)
+        isMostLiq = (~isGas) & (~isMostGas)
+        Pc = np.zeros_like(s_g)
+
+        Rg = r_max
+        Rp = r_min
+
+        # working on isMostGas:
+        p = np.concatenate((b_coef_hyper[isMostGas,np.newaxis]/3, 
+                            np.zeros_like(b_coef_hyper)[isMostGas,np.newaxis], 
+                            a_coef_hyper[isMostGas,np.newaxis],
+                            ((s_g-1) * V_cap /np.pi)[isMostGas,np.newaxis]),
+                            axis=1)
+        roots_all = np.array([np.roots(row) for row in p])
+        
+        isPositive = roots_all > 0
+        isReal = np.isreal(roots_all)
+        insideDomain = roots_all < L
+
+        roots_all = roots_all * isPositive * isReal * insideDomain
+        roots = np.max(roots_all, axis=1)
+
+        Rg[isMostGas] = a_coef_hyper[isMostGas] + b_coef_hyper[isMostGas] * (roots/2)**2
+        Rg[isMostGas] = np.sqrt(Rg[isMostGas])
+
+        Pc[isMostGas] = 2 * sigma * (1/Rp[isMostGas] - 1/Rg[isMostGas])
+
+        # working on isMostLiq:
+        Pc[isMostLiq] = 2 * sigma * (1/Rp[isMostLiq] - 1/Rg[isMostLiq])
+
+        self.get_non_wetting_phase()["model"].add_model(
+                    propname='throat.entry_pressure',
+                    model=op.models.misc.constant,
+                    value=Pc
+                )
+
+    
     def _define_hydraulic_conductance(self):
         wp = self.get_wetting_phase()["model"]
         nwp = self.get_non_wetting_phase()["model"]
@@ -173,15 +225,12 @@ class Phases:
             s_g = self.get_non_wetting_phase()["model"]['throat.saturation']
         
         def _hyperboloid_conductance_wp(prop):
-            mu_l = prop[0]
 
             g = (np.pi / (8 * mu_l * L)) * (r**2 - s_g * r**2)**2 
 
             return g
 
         def _hyperboloid_conductance_nwp(prop):
-            mu_g = prop[0]
-            mu_l = mu_wp
 
             g =     (np.pi / (8 * mu_g * L)) * (s_g * r**2)**2 
             g = g + (np.pi / (4 * mu_l * L)) * (r**2 - s_g * r**2) * (s_g * r**2)

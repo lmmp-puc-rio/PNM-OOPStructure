@@ -217,9 +217,12 @@ class Network:
         # the following lines treats cases in which r_min>r_max
         ind = np.where(np.isnan(r))[0]
         r[ind] = r_min[ind]
+        r_max[ind] = r_min[ind]
 
         pn["throat.equivalent_radius"] = r
-
+        pn["throat.r_max"] = r_max
+        pn["throat.r_min"] = r_min
+        
 
     def _throat_geometry_and_triangle_angles(self):
         r"""
