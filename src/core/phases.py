@@ -74,8 +74,8 @@ class Phases:
         # isWettingPhase = phase_model['pore.contact_angle'][0] < 90
         if self.config_general.cross_sec == ThroatType.HYPERBOLOID:
             # if not(isWettingPhase):
-            phase_model['throat.saturation'] = np.ones(phase_model.Nt)
-            phase_model['throat.saturation'] = self.hyperboloid_capillary_pressure()
+            phase_model['pore.saturation'] = np.ones(phase_model.Nt)
+            self.hyperboloid_capillary_pressure()
 
         phase_model.regenerate_models()
         return phase_model
@@ -126,19 +126,36 @@ class Phases:
                 return phase
         return None
     
+    def upwind(self, vector_pores):
+        """
+        assign throat property using pore property 
+        """
+        
+        pn = self.network.network
+
+        conns = pn['throat.conns']
+        ind = pn['pore.pressure'][conns, 1] - pn['pore.pressure'][conns, 0] # throat dp
+        ind = ind / np.abs(ind) # +1 if going in a direction, -1 otherwise
+        ind = ind+1             # +2 if going in a direction,  0 otherwise
+        ind = ind/2             # +1 if going in a direction,  0 otherwise
+        ind.astype(int)
+
+        vector_throats = vector_pores[conns[ind]]
+        return vector_throats
+    
     def hyperboloid_capillary_pressure(self):
 
         pn = self.network.network
         L = pn['throat.total_length']
         r = pn['throat.equivalent_radius']
-        s_g = self.get_non_wetting_phase()["model"]['throat.saturation']
+        s_g = self.get_non_wetting_phase()["model"]['pore.saturation']
         r_max = pn["throat.r_max"] 
         r_min = pn["throat.r_min"] 
         a_coef_hyper = r_min**2
         b_coef_hyper = ((2/L)**2) * (r_max**2 - r_min**2)
         V_cap = 2*np.pi * (a_coef_hyper * L/2 + (b_coef_hyper/3) * (L/2)**3)
         sigma = self.get_non_wetting_phase()["model"]['pore.sigma']
-
+        sigma = self.upwind(sigma)
 
         isGas = s_g == 1
         isMostGas = (s_g < 1) & (s_g > 0.5)
@@ -221,9 +238,12 @@ class Phases:
             pn = self.network.network
             L = pn['throat.total_length']
             r = pn['throat.equivalent_radius']
-            mu_l = self.get_non_wetting_phase()["model"]['pore.mu_l'][0]
-            mu_g = self.get_non_wetting_phase()["model"]['pore.mu_g'][0]
-            s_g = self.get_non_wetting_phase()["model"]['throat.saturation']
+            mu_l = self.get_non_wetting_phase()["model"]['pore.mu_l']
+            mu_l = self.upwind(mu_l)
+            mu_g = self.get_non_wetting_phase()["model"]['pore.mu_g']
+            mu_g = self.upwind(mu_g)
+            s_g  = self.get_non_wetting_phase()["model"]['pore.saturation']
+            s_g  = self.upwind(s_g)
         
         def _hyperboloid_conductance_wp(prop):
 
