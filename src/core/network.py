@@ -371,3 +371,14 @@ class Network:
         porosity = Vol_void / Vol_bulk
         return porosity
     
+    def throat_radius_histogram(self):
+        r"""
+        Plots the histogram with the geometry's distribution of throat radius 
+        """
+
+        plt.hist(self.network["throat.radius"])
+        plt.xlabel(r'Raio da garganta [$\mu$ m]')
+        plt.ylabel(r'Frequência')
+        saveFile = os.path.join('./src/results', self.config.project_name, 'graphs/throat_radius_histogram.png')
+        plt.savefig(saveFile)
+        plt.close()
