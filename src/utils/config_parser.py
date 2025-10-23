@@ -240,6 +240,9 @@ class pnextractConfig:
     Offset:      float
     """
     N :          int
+    Nx :         int
+    Ny :         int
+    Nz :         int
     ElementSize: float
     Offset:      float
 
@@ -350,7 +353,10 @@ class ConfigParser:
         Gets the configurations for pnextractor use.
         """
         return pnextractConfig(
-            N           = pnextractor_data["N"],
+            N           = pnextractor_data.get("N"),
+            Nx          = pnextractor_data.get("Nx"),
+            Ny          = pnextractor_data.get("Ny"),
+            Nz          = pnextractor_data.get("Nz"),
             ElementSize = pnextractor_data["ElementSize"],
             Offset      = pnextractor_data["Offset"],
         )
