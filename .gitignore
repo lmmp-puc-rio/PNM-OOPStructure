@@ -173,3 +173,8 @@ cython_debug/
 # Results
 results/
 demo_results/
+
+# files that generate / load the pore network
+*.dat
+*.raw
+*.mhd

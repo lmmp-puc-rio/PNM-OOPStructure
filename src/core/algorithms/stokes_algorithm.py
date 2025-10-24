@@ -8,7 +8,7 @@ viscous flow simulations with support for non-Newtonian fluid behavior.
 import numpy as np
 import openpnm as op
 from .base_algorithm import BaseAlgorithm
-
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 
 class StokesAlgorithm(BaseAlgorithm):
     r"""
@@ -40,6 +40,7 @@ class StokesAlgorithm(BaseAlgorithm):
     
     def __init__(self, network, phase, config, phases, domain_length=None, domain_area=None):
         super().__init__(network, phase, config)
+        self.config_general = config.network
         self.phases = phases
         self.domain_length = domain_length
         self.domain_area = domain_area
@@ -90,8 +91,8 @@ class StokesAlgorithm(BaseAlgorithm):
             self.create_algorithm()
         self.algorithm.settings["f_rtol"] = 1e-6
         self.algorithm.settings["x_rtol"] = 1e-6
-        #TODO implement Phase.TYPE to define phase models and properties
-        self._setup_non_newtonian_conductance()
+        if self.config_general.cross_sec == FluidType.NONNEWT:
+            self._setup_non_newtonian_conductance()
         
         pn = self.network.network
         phase_model = self.phase['model']

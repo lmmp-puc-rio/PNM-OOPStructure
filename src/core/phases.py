@@ -1,4 +1,5 @@
 from utils.config_parser import PhaseModel
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 import openpnm as op
 import numpy as np
 class Phases:
@@ -21,6 +22,7 @@ class Phases:
     """
     def __init__(self, network, config):
         self.config = config.phases
+        self.config_general = config.network
         self.network = network
         self.phases = []
         for dict_phase in self.config:
@@ -32,6 +34,8 @@ class Phases:
                     config=dict_phase
                 )
             )
+        if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+            self._update_hydraulic_conductance_nwp(dict_phase)
 
     def _create_phase_model(self, raw: dict):
         r"""
@@ -68,6 +72,7 @@ class Phases:
             else:
                 raise ValueError(f"Unknown property prefix in {prop}")
         phase_model['pore.pressure'] = (np.random.uniform(0, 1, size=phase_model.Np)) * min(self.network.network['throat.diameter'])
+        self.add_hydraulic_conductance_model(phase_model)
         phase_model.regenerate_models()
         return phase_model
 
@@ -116,10 +121,136 @@ class Phases:
             if model['pore.contact_angle'][0] >= 90:
                 return phase
         return None
+    
+    
+    
+    def add_hydraulic_conductance_model(self, phase_model):
+        r"""
+        Add a simple Hagen-Poiseuille model for 'throat.hydraulic_conductance' on the network.
+        """
+        def _hp_conductance(prop, length, visc):
+            D = prop
+            L = phase_model[length]
+
+            mu = phase_model[visc][0]*np.ones_like(D)
+
+            return np.pi*(D/2.0)**4/(8.0*L) / mu
+        
+        def _triang_conductance(prop, area, visc):
+            G = prop
+            circular_throats   = G > 0.079
+            triangular_throats = G <=  np.sqrt(3)/36
+            k = np.ones_like(G)
+            k[circular_throats]   = 1./2.
+            k[triangular_throats] = 3./5.
+
+            mu = phase_model[visc][0]*np.ones_like(G)
+            A = phase_model[area]
+
+            return k * A**2 * G / mu
+        
+        if self.config_general.cross_sec == CrossSecType.TRIANGULAR: 
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance',
+                model=op.models.misc.generic_function,
+                func=_triang_conductance,
+                prop='throat.shape_factor',
+                area='throat.cross_sectional_area',
+                visc='pore.viscosity', 
+                regen_mode='normal'
+            )
+        elif self.config_general.cross_sec == CrossSecType.CIRCULAR: 
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance',
+                model=op.models.misc.generic_function,
+                func=_hp_conductance,
+                prop='throat.diameter',
+                length='throat.length',
+                visc='pore.viscosity', 
+                regen_mode='normal'
+            )
+        else:
+            raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
+        
+    def _computes_D_S(self, theta_r):
+        r"""
+        Computes middle variables for cappilary pressure and effective area
+        """
+        pn = self.network.network
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # AM -- arc menisci
+
+        theta_r_3 = np.tile(theta_r[:,np.newaxis], (1, 3))
+
+        bi = pn["throat.corner_angles"]
+
+
+        contains_AM = bi < np.pi/2-theta_r_3
+        
+        S1 = np.sum( (( np.cos(theta_r_3)*np.cos(theta_r_3+bi) )/(np.sin(bi)) + theta_r_3 + bi - np.pi/2) * contains_AM
+                    , axis=1, keepdims=False)
+        S2 = np.sum( (( np.cos(theta_r_3+bi) )/(np.sin(bi))) * contains_AM
+                    , axis=1, keepdims=False)
+        S3 = np.sum( (( np.pi/2 - theta_r_3 - bi )) * contains_AM
+                    , axis=1, keepdims=False)
+        
+        D = S1 - 2*S2*np.cos(theta_r) + S3
+
+        return D, S1
+        
+
+    def _effective_area_nwp(self, phase):
+        r"""
+        Computes the effective area occupied by the non wetting fluid after the drainage process
+        """
+        pn = self.network.network
+        r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # theta_r -- receding_contact_angle 
+        # AM -- arc menisci
+        theta_r = phase["throat.receding_contact_angle"]
+        theta_r = np.radians(theta_r)
+
+        D, S1 = self._computes_D_S(theta_r)
+
+        R = r*np.cos(theta_r)*( -1 - np.sqrt( 1 + (4*G*D)/(np.cos(theta_r))**2 ) )
+        R = R / (4*G*D)
+        A_eff = (r**2)/(4*G) - (R**2)*S1   # effective area
+        A_eff = A_eff / ((r**2)/(4*G))     # effective area percentage
+
+        A_eff[circular_throats] = 1.
+
+        return A_eff
+
+    def _update_hydraulic_conductance_nwp(self, dict_phases):
+        r"""
+        Updates the hydraulic conductance of the non wetting phase by multiplying it by the effective throat area 
+        """
+
+        wp  = self.get_wetting_phase()["model"]
+        nwp = self.get_non_wetting_phase()["model"]
+
+        Aeff = self._effective_area_nwp(wp)
+
+        g = nwp['throat.hydraulic_conductance'] * Aeff
+
+        nwp.add_model(
+            propname='throat.hydraulic_conductance',
+            model=op.models.misc.constant,
+            value=g
+        )
 
     def add_conduit_conductance_model(self, phase_model):
         r"""
         Adds the conduit conductance model to the given phase model.
+
+        The conductance of the conduit to phase A (pore-throat-pore) goes to zero if it is occupied by phase B
 
         Parameters
         ----------
