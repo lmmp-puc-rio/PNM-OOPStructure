@@ -5,7 +5,8 @@
         "path": "data/Berea_tomographic",
         "prefix": "Image",
         "inlet": "inlets",
-        "outlet": "outlets"
+        "outlet": "outlets",
+        "cross_sec": "triang"
 
     },
     "phases": [

@@ -64,6 +64,22 @@ class AlgorithmType(Enum):
         if value in ("stokes"):
             return cls.STOKES
         raise ValueError(f"AlgorithmType: {value}")
+    
+class CrossSecType(Enum):
+    r"""
+    Enum for supported algorithm types.
+    """
+    CIRCULAR    = "circular"
+    TRIANGULAR  = "triangular"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("circular", "circ"):
+            return cls.CIRCULAR
+        if value in ("triangular", "triang"):
+            return cls.TRIANGULAR
+        raise ValueError(f"AlgorithmType: {value}")
 
 @dataclass
 class NetworkConfig:
@@ -96,6 +112,7 @@ class NetworkConfig:
         Additional properties for the network (e.g., voxel size, accuracy).
     """
     type:           NetworkType
+    cross_sec:      CrossSecType
     project_name:   str
     inlet:          tuple[str, ...]
     outlet:         tuple[str, ...] | None = None
@@ -106,7 +123,6 @@ class NetworkConfig:
     seed:           int | None = None
     file:           str | None = None
     properties:     dict | None = None
-    cross_sec:      str | None = None
     
     def __post_init__(self):
         r"""
@@ -261,6 +277,7 @@ class ConfigParser:
         """
         return NetworkConfig(
             type            = NetworkType(network_data.get("type")),
+            cross_sec       = CrossSecType(network_data.get("cross_sec")),
             project_name    = network_data.get("project_name"),
             inlet           = network_data.get("inlet"),
             outlet          = network_data.get("outlet"),
@@ -271,7 +288,6 @@ class ConfigParser:
             seed            = network_data.get("seed"),
             file            = network_data.get("file"),
             properties      = network_data.get("properties"),
-            cross_sec       = network_data.get("cross_sec")
         )
         
     @classmethod

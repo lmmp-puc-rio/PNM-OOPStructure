@@ -1,4 +1,4 @@
-from utils.config_parser import NetworkType
+from utils.config_parser import NetworkType, CrossSecType
 import numpy as np
 import openpnm as op
 import skimage.io as sc
@@ -40,9 +40,8 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
-        if self.config.cross_sec == "circles_and_triangles":
+        if self.config.cross_sec == CrossSecType.TRIANGULAR:
             self._throat_geometry_and_triangle_angles()
-        self.add_hydraulic_conductance_model()
         self.network.regenerate_models()
 
     def _create_network(self):
@@ -351,26 +350,6 @@ class Network:
         print(f'K = {K/10**-12/10**-3} mD')
         
         return K
-
-    def add_hydraulic_conductance_model(self):
-        r"""
-        Add a simple Hagen-Poiseuille model for 'throat.hydraulic_conductance' on the network.
-        """
-        pn = self.network
-
-        def _hp_conductance(prop, length):
-            D = prop
-            L = pn[length]
-            return np.pi*(D/2.0)**4/(8.0*L)
-
-        pn.add_model(
-            propname='throat.hydraulic_conductance',
-            model=op.models.misc.generic_function,
-            func=_hp_conductance,
-            prop='throat.diameter',
-            length='throat.length',
-            regen_mode='deferred'
-        )
 
     def calculate_porosity(self):
         r"""
