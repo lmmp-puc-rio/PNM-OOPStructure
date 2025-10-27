@@ -28,6 +28,8 @@ class Network:
     """
     def __init__(self, config):
         self.config = config.network
+        if self.config.type == NetworkType.TOMOGRAPHIC:
+            self.pnextract_config = config.pnextract_config
         self.project_name = getattr(self.config, 'project_name', 'project')
         np.random.seed(self.config.seed)
         self.network = self._create_network()
@@ -56,6 +58,7 @@ class Network:
         elif self.config.type == NetworkType.IMAGE:
             return self._create_image()
         elif self.config.type == NetworkType.TOMOGRAPHIC:
+            self._update_mhd_file()
             self._generate_network_to_be_imported()
             return self._create_imported()
         else:
@@ -124,6 +127,23 @@ class Network:
         """
         os.system("src/utils/pnextract " + os.path.join(self.config.path, "Image.mhd")) 
         os.system("mv Image_* " + self.config.path)  
+
+
+    def _update_mhd_file(self):
+        lines = []
+        filepath = os.path.join(self.config.path, "Image.mhd")
+        with open(filepath, "r") as f:
+            for line in f:
+                if line.startswith("DimSize"):
+                    line = f"DimSize =\t{self.pnextract_config.N}\t{self.pnextract_config.N}\t{self.pnextract_config.N}\n"
+                elif line.startswith("ElementSize"):
+                    line = f"ElementSize =\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\n"
+                elif line.startswith("Offset"):
+                    line = f"Offset =\t{self.pnextract_config.Offset}\t{self.pnextract_config.Offset}\t{self.pnextract_config.Offset}\n"
+                lines.append(line)
+
+        with open(filepath, "w") as f:
+            f.writelines(lines)
 
  
     def _setup_boundary_conditions(self):
