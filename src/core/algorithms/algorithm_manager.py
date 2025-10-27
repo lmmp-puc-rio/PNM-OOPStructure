@@ -193,8 +193,6 @@ class AlgorithmManager:
         
         D = S1 - 2*S2*np.cos(theta_r) + S3
 
-        print(((4*G*D)/(np.cos(theta_r)**2)))
-
         Fd = 1 + np.sqrt(1 + ((4*G*D)/(np.cos(theta_r)**2)) )
         Fd = Fd/ (1 + 2*np.sqrt(np.pi*G))
 
@@ -220,7 +218,45 @@ class AlgorithmManager:
         """
         pn = self.network.network
         r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
 
+        circular_throats = G > 0.079
+
+        # theta_a -- advancing_contact_angle 
+        # AM -- arc menisci
+        theta_a = self.phases.get_wetting_phase()["model"]["throat.advancing_contact_angle"]
+        theta_a = np.radians(theta_a)
+        theta_a = np.pi-theta_a
+        theta_a_3 = np.tile(theta_a[:,np.newaxis], (1, 3))
+        bi = pn["throat.corner_angles"]
+
+
+        contains_AM = bi < np.pi/2-theta_a_3
+        
+        S1 = np.sum( (( np.cos(theta_a_3)*np.cos(theta_a_3+bi) )/(np.sin(bi)) + theta_a_3 + bi - np.pi/2) * contains_AM
+                    , axis=1, keepdims=False)
+        S2 = np.sum( (( np.cos(theta_a_3+bi) )/(np.sin(bi))) * contains_AM
+                    , axis=1, keepdims=False)
+        S3 = np.sum( (( np.pi/2 - theta_a_3 - bi )) * contains_AM
+                    , axis=1, keepdims=False)
+        
+        D = S1 - 2*S2*np.cos(theta_a) + S3
+
+        Fd = 1 + np.sqrt(1 + ((4*G*D)/(np.cos(theta_a)**2)) )
+        Fd = Fd/ (1 + 2*np.sqrt(np.pi*G))
+
+        sigma = self.phases.get_wetting_phase()["model"]["pore.surface_tension"]
+        sigma = np.ones_like(theta_a)* sigma[0]
+        Pc = sigma * np.cos(theta_a) * (1 + 2*np.sqrt(np.pi*G))
+        Pc = Pc/r*Fd
+
+        Pc[circular_throats] = 2 * sigma[circular_throats] * np.cos(theta_a[circular_throats]) /r[circular_throats]
+
+        self.phases.get_wetting_phase()["model"].add_model(
+                    propname='throat.entry_pressure',
+                    model=op.models.misc.constant,
+                    value=Pc
+                )
 
 
     
