@@ -15,6 +15,7 @@ class NetworkType(Enum):
     CUBIC       = "cubic"
     IMPORTED    = "imported"
     IMAGE       = "image"
+    TOMOGRAPHIC = "tomographic"
     
     @classmethod
     def _missing_(cls, value):
@@ -25,6 +26,8 @@ class NetworkType(Enum):
             return cls.IMPORTED
         if value in ("image", "images", "img", "image2d", "image3d"):
             return cls.IMAGE
+        if value in ("tomographic", "tom"):
+            return cls.TOMOGRAPHIC
         raise ValueError(f"NetworkType: {value}")
     
 class PhaseModel(Enum):
@@ -48,15 +51,50 @@ class AlgorithmType(Enum):
     Enum for supported algorithm types.
     """
     DRAINAGE    = "drainage"
+    IMBIBITION  = "imbibition"
     STOKES      = "stokes"
     
     @classmethod
     def _missing_(cls, value):
         value = value.lower()
-        if value in ("drainage", "imbibition"):
+        if value in ("drainage"):
             return cls.DRAINAGE
+        if value in ("imbibition"):
+            return cls.IMBIBITION
         if value in ("stokes"):
             return cls.STOKES
+        raise ValueError(f"AlgorithmType: {value}")
+    
+class CrossSecType(Enum):
+    r"""
+    Enum for supported algorithm types.
+    """
+    CIRCULAR    = "circular"
+    TRIANGULAR  = "triangular"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("circular", "circ"):
+            return cls.CIRCULAR
+        if value in ("triangular", "triang"):
+            return cls.TRIANGULAR
+        raise ValueError(f"AlgorithmType: {value}")
+    
+class FluidType(Enum):
+    r"""
+    Enum for supported algorithm types.
+    """
+    NEWT    = "newtonian"
+    NONNEWT  = "nonnewtonian"
+    
+    @classmethod
+    def _missing_(cls, value):
+        value = value.lower()
+        if value in ("newtonian", "newt"):
+            return cls.NEWT
+        if value in ("nonnewtonian", "nonnewt"):
+            return cls.NONNEWT
         raise ValueError(f"AlgorithmType: {value}")
 
 @dataclass
@@ -90,6 +128,8 @@ class NetworkConfig:
         Additional properties for the network (e.g., voxel size, accuracy).
     """
     type:           NetworkType
+    cross_sec:      CrossSecType
+    fluid_type:     FluidType
     project_name:   str
     inlet:          tuple[str, ...]
     outlet:         tuple[str, ...] | None = None
@@ -190,6 +230,21 @@ class AlgorithmConfig:
                                    "initial_pressure", "final_pressure") if getattr(self, p) is None]
             if missing:
                 raise ValueError(f"Stokes Algorithm missing parameters: {', '.join(missing)}")
+            
+@dataclass
+class pnextractConfig:
+    r"""
+
+    N :          int
+    ElementSize: float
+    Offset:      float
+    """
+    N :          int
+    Nx :         int
+    Ny :         int
+    Nz :         int
+    ElementSize: float
+    Offset:      float
 
 @dataclass
 class ProjectConfig:
@@ -199,6 +254,7 @@ class ProjectConfig:
     network:    NetworkConfig
     phases:     tuple[PhaseConfig, ...]
     algorithm:  tuple[AlgorithmConfig, ...]
+    pnextract_config:    pnextractConfig
     
 class ConfigParser:
     r"""
@@ -219,10 +275,19 @@ class ConfigParser:
         r"""
         Builds the full ProjectConfig from the raw JSON dict.
         """
+        if not (cls._build_network(raw["network"]).type == NetworkType.TOMOGRAPHIC):
+            return ProjectConfig(
+                network     = cls._build_network(raw["network"]),
+                phases      = cls._build_phases(raw["phases"]),
+                algorithm   = cls._build_algorithm(raw["algorithm"]),
+                pnextract_config   = None
+            )
+    
         return ProjectConfig(
             network     = cls._build_network(raw["network"]),
             phases      = cls._build_phases(raw["phases"]),
-            algorithm   = cls._build_algorithm(raw["algorithm"])
+            algorithm   = cls._build_algorithm(raw["algorithm"]),
+            pnextract_config   = cls._build_pnextractor(raw["pnextract_config"])
         )
     
     @classmethod
@@ -232,6 +297,8 @@ class ConfigParser:
         """
         return NetworkConfig(
             type            = NetworkType(network_data.get("type")),
+            cross_sec       = CrossSecType(network_data.get("cross_sec")),
+            fluid_type       = FluidType(network_data.get("fluid_type")),
             project_name    = network_data.get("project_name"),
             inlet           = network_data.get("inlet"),
             outlet          = network_data.get("outlet"),
@@ -241,7 +308,7 @@ class ConfigParser:
             spacing         = network_data.get("spacing"), 
             seed            = network_data.get("seed"),
             file            = network_data.get("file"),
-            properties      = network_data.get("properties")
+            properties      = network_data.get("properties"),
         )
         
     @classmethod
@@ -279,3 +346,17 @@ class ConfigParser:
                 )
             )
         return tuple(algorithms)
+    
+    @classmethod
+    def _build_pnextractor(cls, pnextractor_data: dict):
+        r"""
+        Gets the configurations for pnextractor use.
+        """
+        return pnextractConfig(
+            N           = pnextractor_data.get("N"),
+            Nx          = pnextractor_data.get("Nx"),
+            Ny          = pnextractor_data.get("Ny"),
+            Nz          = pnextractor_data.get("Nz"),
+            ElementSize = pnextractor_data["ElementSize"],
+            Offset      = pnextractor_data["Offset"],
+        )
