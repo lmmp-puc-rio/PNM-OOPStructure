@@ -14,10 +14,12 @@
             "name": "water",
             "color": "#0000ff",
             "properties": {
-                "pore.viscosity": 1e-5,
+                "pore.viscosity": 1e-3,
                 "pore.surface_tension": 0.072,
                 "pore.contact_angle": 30.0,
-                "throat.diffusivity": 1e-8
+                "throat.diffusivity": 1e-8,
+                "throat.receding_contact_angle": 1,
+                "throat.advancing_contact_angle": 60
             }
         },
         {
