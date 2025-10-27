@@ -350,7 +350,7 @@ class ConfigParser:
         Gets the configurations for pnextractor use.
         """
         return pnextractConfig(
-            N           = pnextractor_data.get("N"),
-            ElementSize = pnextractor_data.get("ElementSize"),
-            Offset      = pnextractor_data.get("Offset"),
+            N           = pnextractor_data["N"],
+            ElementSize = pnextractor_data["ElementSize"],
+            Offset      = pnextractor_data["Offset"],
         )
