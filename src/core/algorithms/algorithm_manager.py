@@ -241,7 +241,8 @@ class AlgorithmManager:
         self.phases.get_non_wetting_phase()["model"].add_model(
                     propname='throat.entry_pressure',
                     model=op.models.misc.constant,
-                    value=Pc
+                    value=Pc, 
+                    regen_mode='normal'
                 )
         
 
@@ -264,5 +265,6 @@ class AlgorithmManager:
         self.phases.get_wetting_phase()["model"].add_model(
                     propname='throat.entry_pressure',
                     model=op.models.misc.constant,
-                    value=Pc
+                    value=Pc, 
+                    regen_mode='normal'
                 )
