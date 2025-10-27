@@ -1,4 +1,5 @@
 from utils.config_parser import PhaseModel
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 import openpnm as op
 import numpy as np
 class Phases:
@@ -21,6 +22,7 @@ class Phases:
     """
     def __init__(self, network, config):
         self.config = config.phases
+        self.config_general = config.network
         self.network = network
         self.phases = []
         for dict_phase in self.config:
@@ -68,6 +70,7 @@ class Phases:
             else:
                 raise ValueError(f"Unknown property prefix in {prop}")
         phase_model['pore.pressure'] = (np.random.uniform(0, 1, size=phase_model.Np)) * min(self.network.network['throat.diameter'])
+        self.add_hydraulic_conductance_model(phase_model)
         phase_model.regenerate_models()
         return phase_model
 
@@ -116,6 +119,56 @@ class Phases:
             if model['pore.contact_angle'][0] >= 90:
                 return phase
         return None
+    
+    
+    
+    def add_hydraulic_conductance_model(self, phase_model):
+        r"""
+        Add a simple Hagen-Poiseuille model for 'throat.hydraulic_conductance' on the network.
+        """
+        def _hp_conductance(prop, length, visc):
+            D = prop
+            L = phase_model[length]
+
+            mu = phase_model[visc][0]*np.ones_like(D)
+
+            return np.pi*(D/2.0)**4/(8.0*L) / mu
+        
+        def _triang_conductance(prop, area, visc):
+            G = prop
+            circular_throats   = G > 0.079
+            triangular_throats = G <=  np.sqrt(3)/36
+            k = np.ones_like(G)
+            k[circular_throats]   = 1./2.
+            k[triangular_throats] = 3./5.
+
+            mu = phase_model[visc][0]*np.ones_like(G)
+            A = phase_model[area]
+
+            return k * A**2 * G / mu
+        
+        if self.config_general.cross_sec == CrossSecType.TRIANGULAR: 
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance',
+                model=op.models.misc.generic_function,
+                func=_triang_conductance,
+                prop='throat.shape_factor',
+                area='throat.cross_sectional_area',
+                visc='pore.viscosity', 
+                regen_mode='deferred'
+            )
+        elif self.config_general.cross_sec == CrossSecType.CIRCULAR: 
+            phase_model.add_model(
+                propname='throat.hydraulic_conductance',
+                model=op.models.misc.generic_function,
+                func=_hp_conductance,
+                prop='throat.diameter',
+                length='throat.length',
+                visc='pore.viscosity', 
+                regen_mode='deferred'
+            )
+        else:
+            raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
 
     def add_conduit_conductance_model(self, phase_model):
         r"""
