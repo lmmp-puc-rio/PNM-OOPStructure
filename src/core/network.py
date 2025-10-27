@@ -40,6 +40,7 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
+        self._throat_geometry_and_triangle_angles()
         self.add_hydraulic_conductance_model()
         self.network.regenerate_models()
 
@@ -197,7 +198,41 @@ class Network:
         h = op.utils.check_network_health(pn)
         op.topotools.trim(network=pn, pores=h['disconnected_pores'])
         pn.regenerate_models()
-    
+
+    def _throat_geometry_and_triangle_angles(self):
+        r"""
+        Decides weather the throat will follow a circular cross section or a triangular one.
+        I am ignoring square section throats. Sq throats should be considered when G>=sqrt(3)/36 and G<0.079
+        We're assigning sqrt(3)/36<G<0.079 as G=qrt(3)/36 so we can treat them as triangle shaped
+
+        https://doi.org/10.1029/2003WR002627
+        https://doi.org/10.1103/PhysRevE.96.013312 
+        """
+        pn = self.network
+        circular_throats = pn["throat.shape_factor"] > 0.079
+        triangular_throats = pn["throat.shape_factor"] <  np.sqrt(3)/36
+        sq_throats = ~(circular_throats | triangular_throats)
+
+        G = pn["throat.shape_factor"]
+        G[sq_throats] = np.sqrt(3)/36 * .99
+        triangular_throats = G <=  np.sqrt(3)/36
+
+        num_throats = pn["throat.shape_factor"].shape[0]
+        num_triangular = np.where(triangular_throats)[0].shape[0]
+
+        pn["throat.corner_angles"] = np.zeros((num_throats, 3))
+        b2_min = np.arctan( (2/np.sqrt(3)) * np.cos( np.arccos(-12*np.sqrt(3)*G[triangular_throats])/3 + (4*np.pi)/3 ) )
+        b2_max = np.arctan( (2/np.sqrt(3)) * np.cos( np.arccos(-12*np.sqrt(3)*G[triangular_throats])/3 ) )
+        b2 = np.random.rand(num_triangular) * (b2_max - b2_min) + b2_min
+
+        b1 = -1/2*b2 + 1/2*np.arcsin( ( np.tan(b2) + 4*G[triangular_throats] )/( np.tan(b2) - 4*G[triangular_throats] )*np.sin(b2) )
+        b3 = np.pi/2 - b1 - b2
+
+        pn["throat.corner_angles"][triangular_throats, 0] = b1
+        pn["throat.corner_angles"][triangular_throats, 1] = b2
+        pn["throat.corner_angles"][triangular_throats, 2] = b3
+
+
     def set_inlet_outlet_pores(self, inlet_pores=None, outlet_pores=None):
         r"""
         Set inlet and outlet pores using specific pore numbers.

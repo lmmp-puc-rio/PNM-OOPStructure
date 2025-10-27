@@ -1,7 +1,7 @@
 {
     "network": {
         "type": "tom",
-        "project_name": "tomographic",
+        "project_name": "tomographic_vb",
         "path": "data/Berea_tomographic",
         "prefix": "Image",
         "inlet": "inlets",
