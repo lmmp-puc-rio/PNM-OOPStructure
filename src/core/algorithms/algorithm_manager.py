@@ -135,6 +135,7 @@ class AlgorithmManager:
             
             if config.type == AlgorithmType.DRAINAGE:
                 if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+                    self._effective_area_nwp()
                     self._capillary_pressure_drainage()
                 result = algorithm.run(pore_trapped, throat_trapped)
                 # Update trapped states for next algorithms
@@ -142,6 +143,7 @@ class AlgorithmManager:
                 throat_trapped = result['throat_trapped'].copy()
             if config.type == AlgorithmType.IMBIBITION:
                 if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+                    self._effective_area_nwp()
                     self._capillary_pressure_imbibition()
                 result = algorithm.run(pore_trapped, throat_trapped)
                 # Update trapped states for next algorithms
@@ -178,7 +180,6 @@ class AlgorithmManager:
         Computes middle variables for cappilary pressure and effective area
         """
         pn = self.network.network
-        r = pn["throat.diameter"]/2
         G = pn["throat.shape_factor"]
 
         circular_throats = G > 0.079
@@ -230,12 +231,6 @@ class AlgorithmManager:
         This considers the amount of water that remains as a film on the throat walls, modeled as water remaining at the triangle corners
         https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
         """
-        pn = self.network.network
-        r = pn["throat.diameter"]/2
-        G = pn["throat.shape_factor"]
-
-        circular_throats = G > 0.079
-
         # theta_r -- receding_contact_angle 
         # AM -- arc menisci
         theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
@@ -258,12 +253,6 @@ class AlgorithmManager:
         This considers the amount of water that remains as a film on the throat walls, modeled as water remaining at the triangle corners
         https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
         """
-        pn = self.network.network
-        r = pn["throat.diameter"]/2
-        G = pn["throat.shape_factor"]
-
-        circular_throats = G > 0.079
-
         # theta_a -- advancing_contact_angle 
         # AM -- arc menisci
         theta_a = self.phases.get_wetting_phase()["model"]["throat.advancing_contact_angle"]
@@ -284,6 +273,26 @@ class AlgorithmManager:
         r"""
         Computes the effective area occupied by the non wetting fluid after the drainage process
         """
+        pn = self.network.network
+        r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # theta_r -- receding_contact_angle 
+        # AM -- arc menisci
+        theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
+        theta_r = np.radians(theta_r)
+
+        D, S1 = self._computes_D_S(theta_r)
+
+        R = r*np.cos(theta_r)*( -1 - np.sqrt( 1 + (4*G*D)/(np.cos(theta_r))**2 ) )
+        R = R / (4*G*D)
+        A_eff = (r**2)/(4*G) - (R**2)*S1
+
+        A_eff[circular_throats] = pn["throat.cross_sectional_area"][circular_throats]
+
+        pn["throat.nwp_effective_area"] = A_eff
 
     
 
