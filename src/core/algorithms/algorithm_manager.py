@@ -173,11 +173,9 @@ class AlgorithmManager:
             if alg['name'] == name
         )
     
-    def _capillary_pressure_drainage(self):
+    def _computes_D_S(self, theta_r):
         r"""
-        Compute the capillary pressure during the drainage process.
-        This considers the amount of water that remains as a film on the throat walls, modeled as water remaining at the triangle corners
-        https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
+        Computes middle variables for cappilary pressure and effective area
         """
         pn = self.network.network
         r = pn["throat.diameter"]/2
@@ -185,10 +183,8 @@ class AlgorithmManager:
 
         circular_throats = G > 0.079
 
-        # theta_r -- receding_contact_angle 
         # AM -- arc menisci
-        theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
-        theta_r = np.radians(theta_r)
+
         theta_r_3 = np.tile(theta_r[:,np.newaxis], (1, 3))
 
         bi = pn["throat.corner_angles"]
@@ -205,6 +201,17 @@ class AlgorithmManager:
         
         D = S1 - 2*S2*np.cos(theta_r) + S3
 
+        return D, S1
+    
+    def _compute_capillary_pressure(self, theta_r, D):
+        r"""
+        Capillary pressure computation
+        """
+        pn = self.network.network
+        r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
         Fd = 1 + np.sqrt(1 + ((4*G*D)/(np.cos(theta_r)**2)) )
         Fd = Fd/ (1 + 2*np.sqrt(np.pi*G))
 
@@ -214,6 +221,29 @@ class AlgorithmManager:
         Pc = Pc/r*Fd
 
         Pc[circular_throats] = 2 * sigma[circular_throats] * np.cos(theta_r[circular_throats]) /r[circular_throats]
+
+        return Pc
+    
+    def _capillary_pressure_drainage(self):
+        r"""
+        Compute the capillary pressure during the drainage process.
+        This considers the amount of water that remains as a film on the throat walls, modeled as water remaining at the triangle corners
+        https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
+        """
+        pn = self.network.network
+        r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # theta_r -- receding_contact_angle 
+        # AM -- arc menisci
+        theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
+        theta_r = np.radians(theta_r)
+
+        D, _ = self._computes_D_S(theta_r)
+
+        Pc = self._compute_capillary_pressure(theta_r, D)
 
         self.phases.get_wetting_phase()["model"].add_model(
                     propname='throat.entry_pressure',
@@ -239,37 +269,21 @@ class AlgorithmManager:
         theta_a = self.phases.get_wetting_phase()["model"]["throat.advancing_contact_angle"]
         theta_a = np.radians(theta_a)
         theta_a = np.pi-theta_a
-        theta_a_3 = np.tile(theta_a[:,np.newaxis], (1, 3))
-        bi = pn["throat.corner_angles"]
 
+        D, _ = self._computes_D_S(theta_a)
 
-        contains_AM = bi < np.pi/2-theta_a_3
-        
-        S1 = np.sum( (( np.cos(theta_a_3)*np.cos(theta_a_3+bi) )/(np.sin(bi)) + theta_a_3 + bi - np.pi/2) * contains_AM
-                    , axis=1, keepdims=False)
-        S2 = np.sum( (( np.cos(theta_a_3+bi) )/(np.sin(bi))) * contains_AM
-                    , axis=1, keepdims=False)
-        S3 = np.sum( (( np.pi/2 - theta_a_3 - bi )) * contains_AM
-                    , axis=1, keepdims=False)
-        
-        D = S1 - 2*S2*np.cos(theta_a) + S3
-
-        Fd = 1 + np.sqrt(1 + ((4*G*D)/(np.cos(theta_a)**2)) )
-        Fd = Fd/ (1 + 2*np.sqrt(np.pi*G))
-
-        sigma = self.phases.get_wetting_phase()["model"]["pore.surface_tension"]
-        sigma = np.ones_like(theta_a)* sigma[0]
-        Pc = sigma * np.cos(theta_a) * (1 + 2*np.sqrt(np.pi*G))
-        Pc = Pc/r*Fd
-
-        Pc[circular_throats] = 2 * sigma[circular_throats] * np.cos(theta_a[circular_throats]) /r[circular_throats]
+        Pc = self._compute_capillary_pressure(theta_a, D)
 
         self.phases.get_wetting_phase()["model"].add_model(
                     propname='throat.entry_pressure',
                     model=op.models.misc.constant,
                     value=Pc
                 )
-
+        
+    def _effective_area_nwp(self):
+        r"""
+        Computes the effective area occupied by the non wetting fluid after the drainage process
+        """
 
     
 
