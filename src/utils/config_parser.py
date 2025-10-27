@@ -235,7 +235,6 @@ class ConfigParser:
         r"""
         Builds the full ProjectConfig from the raw JSON dict.
         """
-        print(cls._build_network(raw["network"]).type )
         if not (cls._build_network(raw["network"]).type == NetworkType.TOMOGRAPHIC):
             return ProjectConfig(
                 network     = cls._build_network(raw["network"]),
