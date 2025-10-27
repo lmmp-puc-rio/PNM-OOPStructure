@@ -4,6 +4,7 @@ import openpnm as op
 import skimage.io as sc
 import porespy as ps
 import matplotlib.pyplot as plt
+import os
 
 class Network:
     r"""
@@ -54,6 +55,9 @@ class Network:
             return self._create_imported()
         elif self.config.type == NetworkType.IMAGE:
             return self._create_image()
+        elif self.config.type == NetworkType.TOMOGRAPHIC:
+            self._generate_network_to_be_imported()
+            return self._create_imported()
         else:
             raise ValueError(f"NetworkType: {self.config.type}")
 
@@ -111,6 +115,17 @@ class Network:
         pn.regenerate_models()
         return pn
     
+    def _generate_network_to_be_imported(self):
+        r"""
+        Uses pnextract to generate a Statoil format pore network. https://github.com/ImperialCollegeLondon/pnextract
+        
+        The pnextract binary executable file is in the utils folder 
+        -------
+        """
+        os.system("src/utils/pnextract " + os.path.join(self.config.path, "Image.mhd")) 
+        os.system("mv Image_* " + self.config.path)  
+
+ 
     def _setup_boundary_conditions(self):
         r"""
         Set up inlet and outlet boundary condition labels on the network.
