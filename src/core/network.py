@@ -136,7 +136,10 @@ class Network:
         with open(filepath, "r") as f:
             for line in f:
                 if line.startswith("DimSize"):
-                    line = f"DimSize =\t{self.pnextract_config.N}\t{self.pnextract_config.N}\t{self.pnextract_config.N}\n"
+                    if self.pnextract_config.N is not None:
+                        line = f"DimSize =\t{self.pnextract_config.N}\t{self.pnextract_config.N}\t{self.pnextract_config.N}\n"
+                    else:
+                        line = f"DimSize =\t{self.pnextract_config.Nx}\t{self.pnextract_config.Ny}\t{self.pnextract_config.Nz}\n"  
                 elif line.startswith("ElementSize"):
                     line = f"ElementSize =\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\t{self.pnextract_config.ElementSize}\n"
                 elif line.startswith("Offset"):
