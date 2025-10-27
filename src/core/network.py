@@ -374,14 +374,42 @@ class Network:
         porosity = Vol_void / Vol_bulk
         return porosity
     
-    def throat_radius_histogram(self):
+    def throat_radius_histogram(self, xlim=50, ylim=0.2, nbins=20):
         r"""
         Plots the histogram with the geometry's distribution of throat radius 
         """
 
-        plt.hist(self.network["throat.radius"])
-        plt.xlabel(r'Raio da garganta [$\mu$ m]')
-        plt.ylabel(r'Frequência')
+        media = np.mean(self.network["throat.radius"] * 1e6)
+        desvio = np.std(self.network["throat.radius"] * 1e6)
+
+        _, ax = plt.subplots()
+        ax.hist(self.network["throat.radius"] * 1e6, bins=nbins, density=True)
+        ax.plot([media, media], [0, ylim], '--')
+        ax.set_title(f'média: {media:.2f}, desvio: {desvio:.2f}')
+        ax.set_xlabel(r'Raio da garganta [$\mu$m]')
+        ax.set_ylabel('Frequência')
+        ax.set_xlim([0, xlim])
+        ax.set_ylim([0, ylim])
         saveFile = os.path.join('./src/results', self.config.project_name, 'graphs/throat_radius_histogram.png')
+        plt.savefig(saveFile)
+        plt.close()
+    
+    def pore_radius_histogram(self, xlim=50, ylim=0.2, nbins=20):
+        r"""
+        Plots the histogram with the geometry's distribution of pore radius 
+        """
+
+        media = np.mean(self.network["pore.radius"] * 1e6)
+        desvio = np.std(self.network["pore.radius"] * 1e6)
+
+        _, ax = plt.subplots()
+        ax.hist(self.network["pore.radius"] * 1e6, bins=nbins, density=True)
+        ax.plot([media, media], [0, ylim], '--')
+        ax.set_title(f'média: {media:.2f}, desvio: {desvio:.2f}')
+        ax.set_xlabel(r'Raio do poro [$\mu$m]')
+        ax.set_ylabel('Frequência')
+        ax.set_xlim([0, xlim])
+        ax.set_ylim([0, ylim])
+        saveFile = os.path.join('./src/results', self.config.project_name, 'graphs/pore_radius_histogram.png')
         plt.savefig(saveFile)
         plt.close()
