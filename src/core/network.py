@@ -205,8 +205,8 @@ class Network:
         I am ignoring square section throats. Sq throats should be considered when G>=sqrt(3)/36 and G<0.079
         We're assigning sqrt(3)/36<G<0.079 as G=qrt(3)/36 so we can treat them as triangle shaped
 
-        https://doi.org/10.1029/2003WR002627
-        https://doi.org/10.1103/PhysRevE.96.013312 
+        https://doi.org/10.1029/2003WR002627   Valvatne and Blunt 2004
+        https://doi.org/10.1103/PhysRevE.96.013312   Raeni et al. 2017
         """
         pn = self.network
         circular_throats = pn["throat.shape_factor"] > 0.079
