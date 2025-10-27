@@ -1,4 +1,4 @@
-from utils.config_parser import NetworkType, CrossSecType
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 import numpy as np
 import openpnm as op
 import skimage.io as sc

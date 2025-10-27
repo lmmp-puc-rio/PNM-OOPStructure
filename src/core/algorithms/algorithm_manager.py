@@ -10,7 +10,7 @@ import openpnm as op
 from utils.config_parser import AlgorithmType
 from .drainage_algorithm import DrainageAlgorithm
 from .stokes_algorithm import StokesAlgorithm
-
+from utils.config_parser import NetworkType, CrossSecType, FluidType
 
 class AlgorithmManager:
     r"""
@@ -43,6 +43,7 @@ class AlgorithmManager:
         self.network = network
         self.phases = phases
         self.config = config.algorithm
+        self.config_general = config.network
         self.algorithms = []
         self._create_algorithms()
         
@@ -133,13 +134,15 @@ class AlgorithmManager:
             config = alg_dict['config']
             
             if config.type == AlgorithmType.DRAINAGE:
-                self._capillary_pressure_drainage()
+                if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+                    self._capillary_pressure_drainage()
                 result = algorithm.run(pore_trapped, throat_trapped)
                 # Update trapped states for next algorithms
                 pore_trapped = result['pore_trapped'].copy()
                 throat_trapped = result['throat_trapped'].copy()
             if config.type == AlgorithmType.IMBIBITION:
-                self._capillary_pressure_imbibition()
+                if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+                    self._capillary_pressure_imbibition()
                 result = algorithm.run(pore_trapped, throat_trapped)
                 # Update trapped states for next algorithms
                 pore_trapped = result['pore_trapped'].copy()
@@ -187,7 +190,6 @@ class AlgorithmManager:
         theta_r = self.phases.get_wetting_phase()["model"]["throat.receding_contact_angle"]
         theta_r = np.radians(theta_r)
         theta_r_3 = np.tile(theta_r[:,np.newaxis], (1, 3))
-        print(pn)
 
         bi = pn["throat.corner_angles"]
 
