@@ -51,13 +51,16 @@ class AlgorithmType(Enum):
     Enum for supported algorithm types.
     """
     DRAINAGE    = "drainage"
+    IMBIBITION  = "imbibition"
     STOKES      = "stokes"
     
     @classmethod
     def _missing_(cls, value):
         value = value.lower()
-        if value in ("drainage", "imbibition"):
+        if value in ("drainage"):
             return cls.DRAINAGE
+        if value in ("imbibition"):
+            return cls.IMBIBITION
         if value in ("stokes"):
             return cls.STOKES
         raise ValueError(f"AlgorithmType: {value}")
@@ -266,7 +269,8 @@ class ConfigParser:
             spacing         = network_data.get("spacing"), 
             seed            = network_data.get("seed"),
             file            = network_data.get("file"),
-            properties      = network_data.get("properties")
+            properties      = network_data.get("properties"),
+            cross_sec       = network_data.get("cross_sec")
         )
         
     @classmethod

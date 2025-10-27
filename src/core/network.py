@@ -40,7 +40,8 @@ class Network:
         self._setup_boundary_conditions()
         self._setup_domain_properties()
         self._clean_disconnected_pores()
-        self._throat_geometry_and_triangle_angles()
+        if self.config.cross_sec == "circles_and_triangles":
+            self._throat_geometry_and_triangle_angles()
         self.add_hydraulic_conductance_model()
         self.network.regenerate_models()
 
