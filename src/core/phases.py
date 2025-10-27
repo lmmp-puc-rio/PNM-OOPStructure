@@ -34,6 +34,8 @@ class Phases:
                     config=dict_phase
                 )
             )
+        if self.config_general.cross_sec == CrossSecType.TRIANGULAR:
+            self._update_hydraulic_conductance_nwp(dict_phase)
 
     def _create_phase_model(self, raw: dict):
         r"""
@@ -169,6 +171,80 @@ class Phases:
             )
         else:
             raise ValueError(r"Hydraulic conductance not implemented for the selected cross section")
+        
+    def _computes_D_S(self, theta_r):
+        r"""
+        Computes middle variables for cappilary pressure and effective area
+        """
+        pn = self.network.network
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # AM -- arc menisci
+
+        theta_r_3 = np.tile(theta_r[:,np.newaxis], (1, 3))
+
+        bi = pn["throat.corner_angles"]
+
+
+        contains_AM = bi < np.pi/2-theta_r_3
+        
+        S1 = np.sum( (( np.cos(theta_r_3)*np.cos(theta_r_3+bi) )/(np.sin(bi)) + theta_r_3 + bi - np.pi/2) * contains_AM
+                    , axis=1, keepdims=False)
+        S2 = np.sum( (( np.cos(theta_r_3+bi) )/(np.sin(bi))) * contains_AM
+                    , axis=1, keepdims=False)
+        S3 = np.sum( (( np.pi/2 - theta_r_3 - bi )) * contains_AM
+                    , axis=1, keepdims=False)
+        
+        D = S1 - 2*S2*np.cos(theta_r) + S3
+
+        return D, S1
+        
+
+    def _effective_area_nwp(self, phase):
+        r"""
+        Computes the effective area occupied by the non wetting fluid after the drainage process
+        """
+        pn = self.network.network
+        r = pn["throat.diameter"]/2
+        G = pn["throat.shape_factor"]
+
+        circular_throats = G > 0.079
+
+        # theta_r -- receding_contact_angle 
+        # AM -- arc menisci
+        theta_r = phase["throat.receding_contact_angle"]
+        theta_r = np.radians(theta_r)
+
+        D, S1 = self._computes_D_S(theta_r)
+
+        R = r*np.cos(theta_r)*( -1 - np.sqrt( 1 + (4*G*D)/(np.cos(theta_r))**2 ) )
+        R = R / (4*G*D)
+        A_eff = (r**2)/(4*G) - (R**2)*S1   # effective area
+        A_eff = A_eff / ((r**2)/(4*G))     # effective area percentage
+
+        A_eff[circular_throats] = 1.
+
+        return A_eff
+
+    def _update_hydraulic_conductance_nwp(self, dict_phases):
+        r"""
+        Updates the hydraulic conductance of the non wetting phase by multiplying it by the effective throat area 
+        """
+
+        wp  = self.get_wetting_phase()["model"]
+        nwp = self.get_non_wetting_phase()["model"]
+
+        Aeff = self._effective_area_nwp(wp)
+
+        g = nwp['throat.hydraulic_conductance'] * Aeff
+
+        nwp.add_model(
+            propname='throat.hydraulic_conductance',
+            model=op.models.misc.constant,
+            value=g
+        )
 
     def add_conduit_conductance_model(self, phase_model):
         r"""
