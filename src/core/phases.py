@@ -174,6 +174,8 @@ class Phases:
         r"""
         Adds the conduit conductance model to the given phase model.
 
+        The conductance of the conduit to phase A (pore-throat-pore) goes to zero if it is occupied by phase B
+
         Parameters
         ----------
         phase_model : openpnm.phase.Phase
